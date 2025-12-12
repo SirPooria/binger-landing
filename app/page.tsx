@@ -5,26 +5,33 @@ import { motion } from 'framer-motion';
 import { Users, Eye, Sparkles, ArrowLeft, Loader2, CheckCircle } from 'lucide-react';
 
 // --- تنظیمات ---
-// آدرس SheetDB خودت را اینجا جایگذاری کن:
 const API_URL = "https://sheetdb.io/api/v1/3irxkg0opxkbd"; 
 
 export default function BingerLandingPage() {
-  // این متغیرها وضعیت (State) را نگه می‌دارند
+  // متغیرهای وضعیت (State)
   const [phone, setPhone] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [message, setMessage] = useState("");
 
-  // این تابع وقتی دکمه زده میشه اجرا میشه
+  // تابع ارسال فرم با اعتبارسنجی و اتصال به گوگل شیت
   const handleSubmit = async () => {
-    if (!phone || phone.length < 10) {
-      alert("لطفاً شماره موبایل صحیح وارد کنید");
+    // 1. پاک کردن پیام‌های قبلی
+    setMessage("");
+    setStatus('idle');
+
+    // 2. اعتبارسنجی شماره موبایل (فرمت ایران: 09xxxxxxxxx)
+    const iranMobileRegex = /^09[0-9]{9}$/;
+    if (!iranMobileRegex.test(phone)) {
+      setStatus('error');
+      setMessage("شماره موبایل نامعتبر است (مثلاً ۰۹۱۲...)");
       return;
     }
 
-    setLoading(true);
+    // 3. شروع ارسال
+    setStatus('loading');
 
     try {
-      // ارسال داده به گوگل شیت
+      // ارسال به گوگل شیت
       const response = await fetch(API_URL, {
         method: "POST",
         headers: {
@@ -34,23 +41,27 @@ export default function BingerLandingPage() {
         body: JSON.stringify({
           data: [
             {
-              phone: phone,
+              phone: phone, // شماره موبایل
               date: new Date().toLocaleString("fa-IR"), // تاریخ شمسی
+              source: "Landing Page", // منبع (برای تحلیل‌های بعدی)
             },
           ],
         }),
       });
 
+      // 4. بررسی نتیجه
       if (response.ok) {
-        setSubmitted(true); // موفقیت!
+        setStatus('success');
+        setMessage("تبریک! جایگاهت رزرو شد. به محض انتشار خبرت می‌کنیم.");
+        setPhone(""); // پاک کردن فیلد برای زیبایی
       } else {
-        alert("مشکلی پیش آمد. لطفاً دوباره تلاش کنید.");
+        setStatus('error');
+        setMessage("مشکلی در سرور پیش آمد. لطفاً دوباره تلاش کنید.");
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("ارور شبکه. لطفاً اتصال اینترنت را چک کنید.");
-    } finally {
-      setLoading(false);
+      setStatus('error');
+      setMessage("ارور شبکه. لطفاً اتصال اینترنت را چک کنید.");
     }
   };
 
@@ -65,7 +76,7 @@ export default function BingerLandingPage() {
       <nav className="w-full z-50 flex justify-between items-center px-8 py-6">
         <div className="flex items-center gap-3">
             <img src="/Logo.png" alt="Logo" className="h-10 w-auto object-contain" />
-            <span className="text-[10px] text-gray-400">اپلیکیشن ردیابی سریال</span>
+            <span className="text-[10px] text-gray-400 hidden sm:block">اپلیکیشن ردیابی سریال</span>
         </div>
         <button className="text-sm font-medium text-gray-400 hover:text-white transition-colors">
           ورود اعضا
@@ -87,38 +98,38 @@ export default function BingerLandingPage() {
             <span> وارد لیست انتظار شو ( ظرفیت محدود ) </span>
           </motion.div>
           
-          <h1 className="text-5xl lg:text-7xl font-black leading-tight">
+          <h1 className="text-4xl lg:text-7xl font-black leading-tight">
            دیگه یادت نمیره <br/>
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-500">قسمت چندی !</span>
           </h1>
           
           <p className="text-lg text-gray-400 leading-relaxed max-w-md">
-           اولین دستیار شخصیِ فیلم‌بازها در ایران. نقد کن، لیستت رو بساز <br/>
+           اولین دستیار شخصیِ فیلم‌بازها در ایران. نقد کن، لیستت رو بساز <br className="hidden md:block"/>
            و بدون ترس از اسپویل نقد بخون ! 
           </p>
 
           {/* --- INPUT BOX OR SUCCESS MESSAGE --- */}
-          <div className="mt-4 w-full max-w-sm relative group h-16">
+          <div className="mt-4 w-full max-w-sm relative group">
             
-            {!submitted ? (
+            {status !== 'success' ? (
               // حالت اول: فرم ورودی
-              <>
+              <div className="relative h-16">
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-[#ccff00] to-cyan-500 rounded-xl blur opacity-30 group-hover:opacity-50 transition duration-500"></div>
                 <div className="relative flex p-1.5 bg-[#0a0a0a] border border-white/10 rounded-xl h-full items-center">
                   <input 
                     type="tel" 
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="شماره موبایل..." 
-                    disabled={loading}
-                    className="flex-1 bg-transparent border-none outline-none text-white px-3 font-medium text-right dir-rtl placeholder:text-gray-600 h-full"
+                    placeholder="شماره موبایل (۰۹۱۲...)" 
+                    disabled={status === 'loading'}
+                    className="flex-1 bg-transparent border-none outline-none text-white px-3 font-medium text-right dir-rtl placeholder:text-gray-600 h-full w-full"
                   />
                   <button 
                     onClick={handleSubmit}
-                    disabled={loading}
+                    disabled={status === 'loading'}
                     className="bg-[#ccff00] hover:bg-[#b3e600] disabled:bg-gray-600 text-black font-bold h-full px-5 rounded-lg transition-all flex items-center gap-2 text-sm whitespace-nowrap"
                   >
-                    {loading ? (
+                    {status === 'loading' ? (
                       <>
                         <span>صبر کنید</span>
                         <Loader2 className="animate-spin" size={16} />
@@ -131,32 +142,37 @@ export default function BingerLandingPage() {
                     )}
                   </button>
                 </div>
-              </>
+              </div>
             ) : (
               // حالت دوم: پیام موفقیت
               <motion.div 
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="w-full h-full bg-[#ccff00]/10 border border-[#ccff00]/50 rounded-xl flex items-center justify-center gap-3 text-[#ccff00]"
+                className="w-full h-16 bg-[#ccff00]/10 border border-[#ccff00]/50 rounded-xl flex items-center justify-center gap-3 text-[#ccff00]"
               >
                 <CheckCircle size={24} />
                 <span className="font-bold text-lg">شما رزرو شدید! 🎉</span>
               </motion.div>
             )}
 
+            {/* پیام وضعیت (ارور یا موفقیت تکمیلی) */}
+            {message && (
+              <motion.p 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`mt-3 text-xs font-bold text-center ${status === 'error' ? 'text-red-400' : 'text-gray-400'}`}
+              >
+                {message}
+              </motion.p>
+            )}
+
           </div>
           
-          {submitted && (
-             <p className="text-xs text-gray-500 animate-pulse">
-               لینک دعوت اختصاصی شما به زودی پیامک می‌شود.
-             </p>
-          )}
-
         </div>
 
         {/* CENTER: 3D Phones */}
-        <div className="col-span-12 md:col-span-7 relative h-full flex items-center justify-center md:-mt-10">
-             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-cyan-500/10 blur-[80px] rounded-full"></div>
+        <div className="col-span-12 md:col-span-7 relative h-full flex items-center justify-center md:-mt-10 min-h-[300px]">
+             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] md:w-[400px] h-[300px] md:h-[400px] bg-cyan-500/10 blur-[60px] md:blur-[80px] rounded-full"></div>
              
              <motion.div 
                initial={{ opacity: 0, y: 50 }}
@@ -167,14 +183,14 @@ export default function BingerLandingPage() {
                 <img 
                   src="/Phone1.png" 
                   alt="Mystery Screen 1" 
-                  className="absolute left-10 md:left-20 w-[200px] md:w-[280px] z-10 opacity-80 scale-90"
+                  className="absolute left-4 md:left-20 w-[160px] md:w-[280px] z-10 opacity-80 scale-90 object-contain"
                   style={{ transform: 'rotate(-5deg)' }} 
                 />
                 
                 <img 
                   src="/Phone2.png" 
                   alt="Mystery Screen 2" 
-                  className="relative z-20 w-[170px] md:w-[250px] drop-shadow-2xl"
+                  className="relative z-20 w-[140px] md:w-[250px] drop-shadow-2xl object-contain"
                   style={{ transform: 'rotate(5deg)' }} 
                 />
              </motion.div>
@@ -183,28 +199,28 @@ export default function BingerLandingPage() {
       </main>
 
       {/* --- Footer Features --- */}
-      <div className="absolute bottom-0 w-full bg-gradient-to-t from-black via-black/80 to-transparent pt-12 pb-6 px-6 z-30">
-        <div className="max-w-6xl mx-auto grid grid-cols-3 gap-4">
+      <div className="relative md:absolute bottom-0 w-full bg-gradient-to-t from-black via-black/90 to-transparent pt-12 pb-6 px-6 z-30">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4">
             
             {/* کارت بینجی */}
-            <div className="relative flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-cyan-500/30 backdrop-blur-md group overflow-visible">
-                <div className="absolute -top-8 -right-4 w-20 md:w-24 transition-transform group-hover:scale-110 drop-shadow-2xl z-40">
+            <div className="relative flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-cyan-500/30 backdrop-blur-md group overflow-visible min-h-[70px]">
+                <div className="absolute -top-6 -right-2 w-16 md:w-24 transition-transform group-hover:scale-110 drop-shadow-2xl z-40">
                     <img src="/bingy.png" className="w-full h-full object-contain" alt="Bingy Mascot" />
                 </div>
-                <div className="w-12 md:w-16 shrink-0"></div> 
-                <div className="text-right hidden md:block z-10">
+                <div className="w-12 md:w-20 shrink-0"></div> 
+                <div className="text-right z-10 flex-1">
                     <h3 className="text-sm font-bold text-white leading-tight"> تنها نبین! </h3>
-                    <p className="text-xs text-cyan-400 mt-0.5 line-clamp-1"> با هزاران نفر همراه شو. اینجا سینما تعطیل نیست. </p>
+                    <p className="text-xs text-cyan-400 mt-0.5"> با هزاران نفر همراه شو. اینجا سینما تعطیل نیست. </p>
                 </div>
             </div>
 
             <FeatureCard 
-                icon={<Eye className="text-[#ccff00]" />} 
+                icon={<Eye className="text-[#ccff00]" size={20} />} 
                 title="آرشیوِ مغزت رو خالی کن"
                 desc=" مهم نیست کی دیدی، ما دقیق یادمونه کجای سریالی. "
             />
             <FeatureCard 
-                icon={<Users className="text-pink-500" />} 
+                icon={<Users className="text-pink-500" size={20} />} 
                 title=" منطقه امن (بدون اسپویل) "
                 desc=" هر اپیزودی که ببینی، به نظراتش دسترسی پیدا میکنی! "
             />
@@ -217,13 +233,13 @@ export default function BingerLandingPage() {
 
 function FeatureCard({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) {
   return (
-    <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 backdrop-blur-md hover:bg-white/10 transition-colors">
+    <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 backdrop-blur-md hover:bg-white/10 transition-colors min-h-[70px]">
       <div className="w-10 h-10 min-w-[40px] rounded-lg bg-black/50 flex items-center justify-center border border-white/10 overflow-hidden p-1">
         {icon}
       </div>
-      <div className="text-right hidden md:block">
+      <div className="text-right flex-1">
         <h3 className="text-sm font-bold text-white leading-tight">{title}</h3>
-        <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{desc}</p>
+        <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
       </div>
     </div>
   );
