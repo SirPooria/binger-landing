@@ -65,6 +65,7 @@ export default function BingerLandingPage() {
       <nav className="w-full z-50 flex justify-between items-center px-8 py-6">
         <div className="flex items-center gap-3">
             <img src="/Logo.png" alt="Logo" className="h-10 w-auto object-contain" />
+            <span className="text-[10px] text-gray-400">اپلیکیشن ردیابی سریال</span>
         </div>
         <button className="text-sm font-medium text-gray-400 hover:text-white transition-colors">
           ورود اعضا
