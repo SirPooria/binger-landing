@@ -87,13 +87,13 @@ export default function BingerLandingPage() {
           </motion.div>
           
           <h1 className="text-5xl lg:text-7xl font-black leading-tight">
-            کنترل دنیای <br/>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-500">سریال‌ها</span>
+           دیگه یادت نمیره <br/>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-500">قسمت چند بودی!</span>
           </h1>
           
           <p className="text-lg text-gray-400 leading-relaxed max-w-md">
-            اولین پلتفرم هوشمند ردیابی و کل‌کل سینمایی در ایران. <br/>
-            قبل از بقیه، هم‌قبیله‌هات رو پیدا کن.
+           اولین دستیار شخصیِ فیلم‌بازها در ایران. نقد کن، لیستت رو بساز <br/>
+           و بدون ترس از اسپویل نقد بخون ! 
           </p>
 
           {/* --- INPUT BOX OR SUCCESS MESSAGE --- */}
@@ -192,20 +192,20 @@ export default function BingerLandingPage() {
                 </div>
                 <div className="w-12 md:w-16 shrink-0"></div> 
                 <div className="text-right hidden md:block z-10">
-                    <h3 className="text-sm font-bold text-white leading-tight">دستیار هوشمند</h3>
-                    <p className="text-xs text-cyan-400 mt-0.5 line-clamp-1">بینجی هوای احساساتت رو داره.</p>
+                    <h3 className="text-sm font-bold text-white leading-tight"> تنها نبین! </h3>
+                    <p className="text-xs text-cyan-400 mt-0.5 line-clamp-1"> با بینجی و هزاران کاربر دیگه همراه شو. اینجا سینما هیچ‌وقت تعطیل نیست. </p>
                 </div>
             </div>
 
             <FeatureCard 
                 icon={<Eye className="text-[#ccff00]" />} 
-                title="ردیابی دقیق"
-                desc="تایم‌لاین دقیق تماشا."
+                title="آرشیوِ مغزت رو خالی کن"
+                desc=" ما دقیق یادمونه کجای سریالی. حتی اگه ۳ سال پیش دیده باشی. "
             />
             <FeatureCard 
                 icon={<Users className="text-pink-500" />} 
-                title="کل‌کل سینمایی"
-                desc="بحث داغ بدون اسپویل."
+                title=" منطقه امن (بدون اسپویل) "
+                desc=" تا وقتی تیکِ 'دیدم' رو نزنی، نظرات بقیه برات تاره. با خیال راحت کامنت بخون. "
             />
         </div>
       </div>
