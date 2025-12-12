@@ -64,7 +64,7 @@ export default function BingerLandingPage() {
       {/* --- Header --- */}
       <nav className="w-full z-50 flex justify-between items-center px-8 py-6">
         <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="Logo" className="h-10 w-auto object-contain" />
+            <img src="/Logo.png" alt="Logo" className="h-10 w-auto object-contain" />
         </div>
         <button className="text-sm font-medium text-gray-400 hover:text-white transition-colors">
           ورود اعضا
@@ -164,14 +164,14 @@ export default function BingerLandingPage() {
                className="relative w-full h-full flex items-center justify-center"
              >
                 <img 
-                  src="/phone1.png" 
+                  src="/Phone1.png" 
                   alt="Mystery Screen 1" 
                   className="absolute left-10 md:left-20 w-[200px] md:w-[280px] z-10 opacity-80 scale-90"
                   style={{ transform: 'rotate(-5deg)' }} 
                 />
                 
                 <img 
-                  src="/phone2.png" 
+                  src="/Phone2.png" 
                   alt="Mystery Screen 2" 
                   className="relative z-20 w-[220px] md:w-[300px] drop-shadow-2xl"
                   style={{ transform: 'rotate(5deg)' }} 
