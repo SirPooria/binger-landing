@@ -3,9 +3,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Eye, Sparkles, ArrowLeft, Loader2, CheckCircle } from 'lucide-react';
-
-// --- تنظیمات ---
-const API_URL = "https://sheetdb.io/api/v1/3irxkg0opxkbd"; 
+// این خط پایین، اتصال ما به دیتابیس جدیده:
+import { supabase } from '@/lib/supabaseClient';
 
 export default function BingerLandingPage() {
   // متغیرهای وضعیت (State)
@@ -13,13 +12,13 @@ export default function BingerLandingPage() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState("");
 
-  // تابع ارسال فرم با اعتبارسنجی و اتصال به گوگل شیت
+  // --- اینجا همون "تابع" یا دستورالعملی هست که عوضش کردیم ---
   const handleSubmit = async () => {
     // 1. پاک کردن پیام‌های قبلی
     setMessage("");
     setStatus('idle');
 
-    // 2. اعتبارسنجی شماره موبایل (فرمت ایران: 09xxxxxxxxx)
+    // 2. چک کنیم شماره الکی نباشه (باید با 09 شروع بشه)
     const iranMobileRegex = /^09[0-9]{9}$/;
     if (!iranMobileRegex.test(phone)) {
       setStatus('error');
@@ -27,43 +26,31 @@ export default function BingerLandingPage() {
       return;
     }
 
-    // 3. شروع ارسال
+    // 3. شروع ارسال (چراغ لودینگ روشن)
     setStatus('loading');
 
     try {
-      // ارسال به گوگل شیت
-      const response = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          "Accept": "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          data: [
-            {
-              phone: phone, // شماره موبایل
-              date: new Date().toLocaleString("fa-IR"), // تاریخ شمسی
-              source: "Landing Page", // منبع (برای تحلیل‌های بعدی)
-            },
-          ],
-        }),
-      });
+      // 4. ارسال شماره به جدول waitlist در Supabase
+      const { error } = await supabase
+        .from('waitlist') // اسم جدول
+        .insert([{ phone: phone }]); // شماره‌ای که کاربر وارد کرده
 
-      // 4. بررسی نتیجه
-      if (response.ok) {
-        setStatus('success');
-        setMessage("تبریک! جایگاهت رزرو شد. به محض انتشار خبرت می‌کنیم.");
-        setPhone(""); // پاک کردن فیلد برای زیبایی
-      } else {
-        setStatus('error');
-        setMessage("مشکلی در سرور پیش آمد. لطفاً دوباره تلاش کنید.");
+      if (error) {
+        throw error; // اگه ارور داد، بفرستش به بخش catch
       }
+
+      // 5. اگه همه چی خوب بود:
+      setStatus('success');
+      setMessage(" تبریک، جایگاه شما رزرو شد، منتظر ما باشید");
+      setPhone(""); // پاک کردن فیلد ورودی
+      
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Supabase Error:", error);
       setStatus('error');
-      setMessage("ارور شبکه. لطفاً اتصال اینترنت را چک کنید.");
+      setMessage("مشکلی پیش آمد. شاید قبلاً ثبت‌نام کرده‌اید؟");
     }
   };
+  // ---------------------------------------------------------
 
   return (
     <div dir="rtl" className="h-screen w-full bg-[#050505] text-white font-['Vazirmatn'] overflow-hidden relative selection:bg-[#ccff00] selection:text-black flex flex-col">
