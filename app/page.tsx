@@ -83,12 +83,12 @@ export default function BingerLandingPage() {
             className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-[#ccff00] w-fit"
           >
             <Sparkles size={14} />
-            <span>ظرفیت محدود لیست انتظار</span>
+            <span> وارد لیست انتظار شو ( ظرفیت محدود ) </span>
           </motion.div>
           
           <h1 className="text-5xl lg:text-7xl font-black leading-tight">
            دیگه یادت نمیره <br/>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-500">قسمت چند بودی!</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-500">قسمت چندی !</span>
           </h1>
           
           <p className="text-lg text-gray-400 leading-relaxed max-w-md">
@@ -193,19 +193,19 @@ export default function BingerLandingPage() {
                 <div className="w-12 md:w-16 shrink-0"></div> 
                 <div className="text-right hidden md:block z-10">
                     <h3 className="text-sm font-bold text-white leading-tight"> تنها نبین! </h3>
-                    <p className="text-xs text-cyan-400 mt-0.5 line-clamp-1"> با بینجی و هزاران کاربر دیگه همراه شو. اینجا سینما هیچ‌وقت تعطیل نیست. </p>
+                    <p className="text-xs text-cyan-400 mt-0.5 line-clamp-1"> با هزاران نفر همراه شو. اینجا سینما تعطیل نیست. </p>
                 </div>
             </div>
 
             <FeatureCard 
                 icon={<Eye className="text-[#ccff00]" />} 
                 title="آرشیوِ مغزت رو خالی کن"
-                desc=" ما دقیق یادمونه کجای سریالی. حتی اگه ۳ سال پیش دیده باشی. "
+                desc=" مهم نیست کی دیدی، ما دقیق یادمونه کجای سریالی. "
             />
             <FeatureCard 
                 icon={<Users className="text-pink-500" />} 
                 title=" منطقه امن (بدون اسپویل) "
-                desc=" تا وقتی تیکِ 'دیدم' رو نزنی، نظرات بقیه برات تاره. با خیال راحت کامنت بخون. "
+                desc=" هر اپیزودی که ببینی، به نظراتش دسترسی پیدا میکنی! "
             />
         </div>
       </div>
