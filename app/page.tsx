@@ -173,7 +173,7 @@ export default function BingerLandingPage() {
                 <img 
                   src="/Phone2.png" 
                   alt="Mystery Screen 2" 
-                  className="relative z-20 w-[220px] md:w-[300px] drop-shadow-2xl"
+                  className="relative z-20 w-[170px] md:w-[250px] drop-shadow-2xl"
                   style={{ transform: 'rotate(5deg)' }} 
                 />
              </motion.div>
