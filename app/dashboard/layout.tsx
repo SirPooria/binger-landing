@@ -38,7 +38,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="flex items-center justify-between mb-8 px-2">
             <div className="flex items-center gap-3">
                {/* 🖼️ LOGO IMAGE */}
-               <img src="/logo.png" alt="Binger Logo" className="w-30 h-30 object-contain drop-shadow-[0_0_10px_rgba(204,255,0,0.5)]" />
+               <img src="/Logo.png" alt="Binger Logo" className="w-30 h-30 object-contain drop-shadow-[0_0_10px_rgba(204,255,0,0.5)]" />
                
             </div>
             <button onClick={() => setIsSidebarOpen(false)} className="p-2 text-gray-400 hover:text-white bg-white/5 rounded-full border border-white/5"><X size={20} /></button>
@@ -77,7 +77,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {/* لوگو (کنار دکمه منو) */}
               <div className="flex items-center gap-3 cursor-pointer group" onClick={() => router.push('/dashboard')}>
                   {/* 🖼️ LOGO IMAGE HEADER */}
-                  <img src="/logo.png" alt="Binger Logo" className="w-30 h-30 object-contain drop-shadow-[0_0_10px_rgba(204,255,0,0.3)] group-hover:scale-110 transition-transform" />
+                  <img src="/Logo.png" alt="Binger Logo" className="w-30 h-30 object-contain drop-shadow-[0_0_10px_rgba(204,255,0,0.3)] group-hover:scale-110 transition-transform" />
                   {/* نام برند فقط در دسکتاپ */}
                   
               </div>
