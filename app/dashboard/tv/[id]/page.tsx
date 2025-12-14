@@ -9,17 +9,51 @@ import EpisodeModal from '../../components/EpisodeModal';
 import confetti from 'canvas-confetti'; 
 
 // --- SKELETON LOADER ---
+// --- SKELETON LOADER (MATCHING LAYOUT) ---
 const SkeletonPage = () => (
-  <div className="min-h-screen bg-[#050505] animate-pulse pb-20">
-    <div className="w-full h-[50vh] bg-white/5"></div>
-    <div className="max-w-7xl mx-auto px-6 -mt-20 relative z-10">
-       <div className="flex gap-8 items-end">
-           <div className="w-48 h-72 bg-white/10 rounded-2xl hidden md:block"></div>
-           <div className="flex-1 space-y-4">
-               <div className="w-3/4 h-12 bg-white/10 rounded-xl"></div>
-               <div className="w-1/2 h-6 bg-white/10 rounded-lg"></div>
-           </div>
-       </div>
+  <div className="min-h-screen bg-[#050505] animate-pulse pb-20 overflow-hidden">
+    
+    {/* Hero Section Skeleton */}
+    <div className="relative w-full h-[65vh] md:h-[75vh] bg-white/5">
+        <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent"></div>
+        
+        {/* Content Positioned Bottom-Right (Like Real Page) */}
+        <div className="absolute bottom-0 right-0 w-full md:w-2/3 p-6 md:p-12 flex flex-col items-start gap-4 pb-20">
+            {/* Badge */}
+            <div className="w-24 h-6 bg-white/10 rounded-full"></div>
+            
+            {/* Title */}
+            <div className="space-y-2 w-full">
+                <div className="w-3/4 md:w-1/2 h-12 md:h-16 bg-white/10 rounded-xl"></div>
+                <div className="w-1/3 h-6 bg-white/5 rounded-lg"></div>
+            </div>
+            
+            {/* Buttons */}
+            <div className="flex gap-3 mt-4 w-full md:w-auto">
+                <div className="w-32 h-12 bg-white/10 rounded-xl"></div>
+                <div className="w-32 h-12 bg-white/5 rounded-xl border border-white/5"></div>
+            </div>
+        </div>
+    </div>
+
+    {/* Tabs Skeleton */}
+    <div className="sticky top-0 z-40 bg-[#050505] border-b border-white/5">
+        <div className="max-w-7xl mx-auto px-6 flex gap-8 py-4">
+            <div className="w-24 h-4 bg-white/10 rounded"></div>
+            <div className="w-24 h-4 bg-white/10 rounded"></div>
+        </div>
+    </div>
+
+    {/* Content Area Skeleton */}
+    <div className="max-w-7xl mx-auto px-6 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-6">
+            <div className="h-40 bg-white/5 rounded-3xl border border-white/5"></div>
+            <div className="h-24 bg-white/5 rounded-3xl border border-white/5"></div>
+            <div className="h-64 bg-white/5 rounded-3xl border border-white/5"></div>
+        </div>
+        <div className="hidden lg:block space-y-6">
+            <div className="h-64 bg-white/5 rounded-3xl border border-white/5"></div>
+        </div>
     </div>
   </div>
 );

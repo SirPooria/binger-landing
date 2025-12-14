@@ -14,7 +14,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
+  return (  
     <html lang="fa" dir="rtl">
       <body className={vazirmatn.className}>{children}</body>
     </html>
