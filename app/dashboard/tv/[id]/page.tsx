@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getShowDetails, getSeasonDetails, getImageUrl, getBackdropUrl, getSimilarShows, BASE_URL, API_KEY } from '@/lib/tmdbClient';
 import { supabase } from '@/lib/supabaseClient';
-import { ArrowRight, Star, Loader2, Check, Plus, Share2, Play, Info, RotateCcw, ChevronDown, ChevronUp, Activity, BarChart2, Search, Users, Tag, AlertTriangle, X } from 'lucide-react';
+import { ArrowRight, Star, Calendar, Clock, Loader2, CheckCheck, Plus, Check, MessageSquare, Hourglass, Share2, Play, Info, RotateCcw, ChevronDown, ChevronUp, Heart, Activity, BarChart2, Search, Users, Tag, AlertTriangle, CheckCircle2, X, ChevronLeft } from 'lucide-react';
 import EpisodeModal from '../../components/EpisodeModal';
 import confetti from 'canvas-confetti'; 
 
@@ -44,7 +44,7 @@ export default function ShowDetailsPage() {
   const router = useRouter();
   const showId = params.id as string;
 
-  // Data States
+  // --- Data States ---
   const [user, setUser] = useState<any>(null);
   const [show, setShow] = useState<any>(null);
   const [showEn, setShowEn] = useState<any>(null);
@@ -56,18 +56,19 @@ export default function ShowDetailsPage() {
   const [activeTab, setActiveTab] = useState<'about' | 'episodes'>('about');
   const [loading, setLoading] = useState(true);
   
-  // UI States
+  // --- UI States ---
   const [selectedEp, setSelectedEp] = useState<any>(null);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [showConfirmAllModal, setShowConfirmAllModal] = useState(false); // Custom Modal State
+  const [showConfirmAll, setShowConfirmAll] = useState(false); 
   const [expandedSeasons, setExpandedSeasons] = useState<Set<number>>(new Set([1]));
-  
-  // Loading States (Per Item)
-  const [watchlistLoading, setWatchlistLoading] = useState(false);
-  const [seasonLoading, setSeasonLoading] = useState<{[key: number]: boolean}>({}); // Loading per season button
-  const [showLoading, setShowLoading] = useState(false); // Loading for "Watch Whole Show"
+  const carouselRef = useRef<HTMLDivElement>(null);
 
-  // Poll & Ratings
+  // --- Loading States ---
+  const [seasonLoading, setSeasonLoading] = useState<{[key: number]: boolean}>({}); 
+  const [wholeShowLoading, setWholeShowLoading] = useState(false);
+  const [watchlistLoading, setWatchlistLoading] = useState(false);
+
+  // --- Poll & Ratings ---
   const [similarShows, setSimilarShows] = useState<any[]>([]);
   const [myRating, setMyRating] = useState(0); 
   const [bingerStats, setBingerStats] = useState({ avg: 0, count: 0 });
@@ -79,10 +80,7 @@ export default function ShowDetailsPage() {
   const [newComment, setNewComment] = useState("");
   const [commentLoading, setCommentLoading] = useState(false);
 
-  // Refs
-  const carouselRef = useRef<HTMLDivElement>(null);
-
-  // --- Functions ---
+  // --- Helper Functions ---
   const triggerCelebration = () => {
       const duration = 3000;
       const animationEnd = Date.now() + duration;
@@ -99,27 +97,26 @@ export default function ShowDetailsPage() {
       }, 250);
   };
 
-  // Scroll to active episode logic
+  const isReleased = (dateString: string) => {
+    if (!dateString) return false;
+    return new Date(dateString) <= new Date();
+  };
+
   const scrollToActiveEpisode = () => {
       if (carouselRef.current) {
-          // Find first unwatched episode in current season
           const firstUnwatched = episodes.find(ep => !watchedEpisodes.includes(ep.id));
-          // If all watched, maybe go to last one, or just stick to first unwatched logic
           const targetId = firstUnwatched ? `ep-${firstUnwatched.id}` : (episodes.length > 0 ? `ep-${episodes[episodes.length-1].id}` : null);
           
           if (targetId) {
-              const element = document.getElementById(targetId);
-              if (element) {
-                  element.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-              }
+              const el = document.getElementById(targetId);
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
           } else {
-              // Fallback to start
               carouselRef.current.scrollTo({ left: 0, behavior: 'smooth' });
           }
       }
   };
 
-  // --- API Calls ---
+  // --- Fetching Logic ---
   const fetchPollData = async (currentUserId: string) => {
       const { data: myVote } = await supabase.from('poll_votes').select('tag').eq('user_id', currentUserId).eq('show_id', showId).single();
       if (myVote) setUserVote(myVote.tag);
@@ -237,6 +234,12 @@ export default function ShowDetailsPage() {
     if (showId) initData();
   }, [showId]);
 
+  useEffect(() => {
+      if (activeTab === 'episodes' && episodes.length > 0) {
+          setTimeout(scrollToActiveEpisode, 500);
+      }
+  }, [activeTab, episodes]);
+
   const handleSeasonChange = async (seasonNumber: number) => {
     setActiveSeason(seasonNumber);
     if (!allSeasonsData[seasonNumber]) {
@@ -262,11 +265,6 @@ export default function ShowDetailsPage() {
       setExpandedSeasons(newSet);
   }
 
-  const isReleased = (dateString: string) => {
-    if (!dateString) return false;
-    return new Date(dateString) <= new Date();
-  };
-
   const toggleWatched = async (episodeId: number) => {
     if (!user) return;
     const isWatched = watchedEpisodes.includes(episodeId);
@@ -285,16 +283,15 @@ export default function ShowDetailsPage() {
     }
   };
 
-  // Fix: Independent Loading per season
   const toggleSeasonWatched = async (seasonNum: number, seasonEpisodes: any[]) => {
     if (!user) return;
     
-    // Ensure data exists if clicking from collapsed view
     let targetEpisodes = seasonEpisodes;
     if (!targetEpisodes) {
         setSeasonLoading(prev => ({...prev, [seasonNum]: true}));
         const sData = await getSeasonDetails(showId, seasonNum);
         targetEpisodes = sData?.episodes || [];
+        setAllSeasonsData((prev:any) => ({...prev, [seasonNum]: targetEpisodes}));
     }
 
     if (!targetEpisodes || targetEpisodes.length === 0) {
@@ -311,70 +308,91 @@ export default function ShowDetailsPage() {
     let newWatchedList: number[] = [...watchedEpisodes];
 
     if (allWatched) {
-      // Unwatch all
       newWatchedList = newWatchedList.filter(id => !seasonEpisodeIds.includes(id));
       setWatchedEpisodes(newWatchedList);
       await supabase.from('watched').delete().eq('user_id', user.id).in('episode_id', seasonEpisodeIds);
     } else {
-      // Watch all
       const newIdsToInsert = seasonEpisodeIds.filter((id:number) => !watchedEpisodes.includes(id)).map((id:number) => ({ user_id: user.id, show_id: Number(showId), episode_id: id }));
       if (newIdsToInsert.length > 0) {
         newIdsToInsert.forEach(item => newWatchedList.push(item.episode_id));
         setWatchedEpisodes(newWatchedList);
-        await supabase.from('watched').insert(newIdsToInsert);
+        await supabase.from('watched').upsert(newIdsToInsert, { onConflict: 'user_id, episode_id' }); 
         triggerCelebration(); 
       }
     }
     setSeasonLoading(prev => ({...prev, [seasonNum]: false}));
   };
 
-  // Fix: Logic for "Watched Whole Show"
+  // --- 🔥 FIX: "Whole Show" Sync Logic ---
   const handleMarkShowAsWatched = async () => {
-      if(!user) return;
-      setShowLoading(true);
+      if(!user || !show) return;
+      setWholeShowLoading(true);
       
       try {
-          // 1. Get all seasons data (we need to loop because TMDB API doesn't give all IDs in show details)
           const seasonPromises = show.seasons
             .filter((s:any) => s.season_number > 0)
             .map((s:any) => getSeasonDetails(showId, s.season_number));
           
-          const allSeasons = await Promise.all(seasonPromises);
+          const allSeasonsResults = await Promise.all(seasonPromises);
           
-          // 2. Flatten all episodes
+          // 🔥 NEW: Inject data into State immediately!
+          // This fixes the bug where buttons don't update until expanded.
+          const newSeasonsData = { ...allSeasonsData };
+          allSeasonsResults.forEach((s: any) => {
+             if (s?.season_number && s?.episodes) {
+                 newSeasonsData[s.season_number] = s.episodes;
+             }
+          });
+          setAllSeasonsData(newSeasonsData);
+
           let allEpisodes: any[] = [];
-          allSeasons.forEach((s:any) => {
+          allSeasonsResults.forEach((s:any) => {
               if(s?.episodes) allEpisodes = [...allEpisodes, ...s.episodes];
           });
 
-          // 3. Filter released
-          const releasedEpIds = allEpisodes
+          const idsToMark = allEpisodes
             .filter(ep => isReleased(ep.air_date))
             .map(ep => ep.id);
 
-          // 4. Bulk Insert
-          const records = releasedEpIds.map(id => ({
+          if (idsToMark.length === 0) {
+              setWholeShowLoading(false);
+              setShowConfirmAll(false);
+              return;
+          }
+
+          const records = idsToMark.map(id => ({
               user_id: user.id,
               show_id: Number(showId),
               episode_id: id
           }));
 
-          // Upsert is better here to avoid duplicates error
-          const { error } = await supabase.from('watched').upsert(records, { onConflict: 'user_id, show_id, episode_id' });
-          
-          if (!error) {
-              setWatchedEpisodes(prev => {
-                  const unique = new Set([...prev, ...releasedEpIds]);
-                  return Array.from(unique);
-              });
-              triggerCelebration();
-              setShowConfirmAllModal(false); // Close modal
+          // Chunking (Batch of 20)
+          const chunkSize = 20; 
+          for (let i = 0; i < records.length; i += chunkSize) {
+              const chunk = records.slice(i, i + chunkSize);
+              const { error } = await supabase.from('watched').upsert(chunk, { onConflict: 'user_id, episode_id' });
+              
+              if (error) {
+                  console.error("Supabase Upsert Error:", error);
+                  throw new Error(`خطا در دیتابیس: ${error.message}`);
+              }
           }
-      } catch (err) {
-          console.error("Bulk watch failed", err);
+          
+          setWatchedEpisodes(prev => {
+              const unique = new Set([...prev, ...idsToMark]);
+              return Array.from(unique);
+          });
+          triggerCelebration();
+          setShowConfirmAll(false); 
+
+      } catch (err: any) {
+          console.error("Bulk update failed", err);
+          alert(err.message || "خطا در ثبت گروهی.");
+      } finally {
+          setWholeShowLoading(false);
+          setShowConfirmAll(false); 
       }
-      setShowLoading(false);
-  }
+  };
   
   const toggleWatchlist = async () => {
     if (!user) return;
@@ -404,19 +422,18 @@ export default function ShowDetailsPage() {
     if (!user) return;
     setMyRating(rating);
     await supabase.from('show_ratings').upsert({ user_id: user.id, show_id: Number(showId), rating: rating }, { onConflict: 'user_id, show_id' });
-    fetchBingerStats();
+    fetchBingerStats(); 
   };
 
   if (loading) return <SkeletonPage />;
   if (!show) return <div className="text-white text-center mt-20">سریال پیدا نشد!</div>;
 
-  const totalReleasedEpisodes = show.number_of_episodes; // Approximation
+  const totalReleasedEpisodes = show.number_of_episodes; 
   const progressPercent = Math.min(100, Math.round((watchedEpisodes.length / totalReleasedEpisodes) * 100)) || 0;
 
   return (
     <div dir="rtl" className="min-h-screen bg-[#050505] text-white font-['Vazirmatn'] pb-32 md:pb-20">
       
-      {/* Modal */}
       {selectedEp && (
         <EpisodeModal 
             showId={showId}
@@ -427,8 +444,7 @@ export default function ShowDetailsPage() {
         />
       )}
 
-      {/* --- CUSTOM CONFIRM MODAL (New Design) --- */}
-      {showConfirmAllModal && (
+      {showConfirmAll && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
               <div className="bg-[#1a1a1a] border border-[#ccff00]/30 w-full max-w-sm rounded-3xl p-6 text-center shadow-[0_0_50px_rgba(204,255,0,0.1)] relative">
                   <div className="w-16 h-16 bg-[#ccff00]/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-[#ccff00]/20">
@@ -441,13 +457,13 @@ export default function ShowDetailsPage() {
                   <div className="flex gap-3">
                       <button 
                         onClick={handleMarkShowAsWatched}
-                        disabled={showLoading}
+                        disabled={wholeShowLoading}
                         className="flex-1 bg-[#ccff00] hover:bg-[#b3e600] text-black font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
                       >
-                          {showLoading ? <Loader2 className="animate-spin" size={18} /> : 'آره، ثبت کن'}
+                          {wholeShowLoading ? <Loader2 className="animate-spin" size={18} /> : 'آره، ثبت کن'}
                       </button>
                       <button 
-                        onClick={() => setShowConfirmAllModal(false)}
+                        onClick={() => setShowConfirmAll(false)}
                         className="flex-1 bg-white/5 hover:bg-white/10 text-white font-bold py-3 rounded-xl transition-all border border-white/10"
                       >
                           بیخیال
@@ -474,7 +490,6 @@ export default function ShowDetailsPage() {
             <div className="flex-1 space-y-4">
                 <div className="flex items-center gap-3">
                     <span className="bg-[#ccff00] text-black text-xs font-black px-2 py-1 rounded uppercase">{show.status === "Ended" ? "پایان یافته" : "در حال پخش"}</span>
-                    {/* Progress Bar for Show */}
                     {watchedEpisodes.length > 0 && (
                         <div className="flex items-center gap-2 bg-black/50 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
                             <div className="w-16 h-1.5 bg-gray-700 rounded-full overflow-hidden">
@@ -504,12 +519,11 @@ export default function ShowDetailsPage() {
                         <span>{inWatchlist ? 'تو صف تماشا' : 'می‌خوام ببینم'}</span>
                     </button>
                     
-                    {/* Mark Whole Show Button */}
                     <button 
-                        onClick={() => setShowConfirmAllModal(true)}
+                        onClick={() => setShowConfirmAll(true)}
                         className="flex items-center gap-2 px-4 py-3 rounded-xl font-bold bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-all active:scale-95"
                     >
-                        <Check size={18} className={progressPercent === 100 ? "text-[#ccff00]" : "text-gray-400"} />
+                        <CheckCircle2 size={18} className={progressPercent === 100 ? "text-[#ccff00]" : "text-gray-400"} />
                         <span>کل سریال رو دیدم</span>
                     </button>
 
@@ -542,8 +556,7 @@ export default function ShowDetailsPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 mt-8 pb-20">
-          
-          {/* ================= TAB 1: ABOUT ================= */}
+          {/* TAB 1: ABOUT */}
           {activeTab === 'about' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4">
                   <div className="lg:col-span-2 space-y-8">
@@ -701,33 +714,45 @@ export default function ShowDetailsPage() {
                   {/* 1. Continue Tracking */}
                   <div className="space-y-4">
                        <div className="flex items-center justify-between">
-                           <h3 className="font-bold text-xl flex items-center gap-2"><RotateCcw size={20} className="text-[#ccff00]" /> ادامه تماشا (فصل {activeSeason})</h3>
-                           <div className="flex gap-2">
-                               {show.seasons?.filter((s:any) => s.season_number > 0).map((s:any) => (
-                                   <button key={s.id} onClick={() => handleSeasonChange(s.season_number)} className={`px-2 py-1 text-xs rounded ${activeSeason === s.season_number ? 'bg-white text-black' : 'bg-white/10 text-gray-400'}`}>{s.season_number}</button>
-                               ))}
+                           <h3 className="font-bold text-xl flex items-center gap-2"><Play size={20} className="text-[#ccff00]" /> ادامه تماشا</h3>
+                           <div className="flex items-center gap-2">
+                                <button 
+                                   onClick={scrollToActiveEpisode}
+                                   className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-[#ccff00] hover:border-[#ccff00] transition-all ml-2"
+                                   title="بازگشت به آخرین قسمت دیده شده"
+                                >
+                                   <RotateCcw size={16} />
+                                </button>
+                                
+                                {/* 🔥 DROPDOWN FOR SEASONS (Simpsons Proof) */}
+                                <div className="relative">
+                                    <select 
+                                        value={activeSeason} 
+                                        onChange={(e) => handleSeasonChange(Number(e.target.value))}
+                                        className="appearance-none bg-[#1a1a1a] border border-white/10 text-white text-xs font-bold py-1.5 pl-8 pr-3 rounded-lg cursor-pointer focus:outline-none focus:border-[#ccff00]"
+                                    >
+                                        {show.seasons?.filter((s:any) => s.season_number > 0).map((s:any) => (
+                                            <option key={s.id} value={s.season_number}>فصل {s.season_number}</option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                </div>
                            </div>
                        </div>
                        
-                       {/* Carousel Container with Ref */}
-                       <div ref={carouselRef} className="flex gap-4 overflow-x-auto pb-6 no-scrollbar snap-x px-1 items-center">
-                           <button onClick={scrollToActiveEpisode} className="shrink-0 w-12 h-20 rounded-xl border border-white/10 flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/5 transition-all" title="بازگشت به آخرین">
-                               <RotateCcw size={20} />
-                           </button>
-
+                       <div ref={carouselRef} className="flex gap-4 overflow-x-auto pb-6 no-scrollbar snap-x px-1 items-center scroll-smooth">
                            {episodes.map((ep: any) => {
                                const isWatched = watchedEpisodes.includes(ep.id);
-                               const released = isReleased(ep.air_date);
                                return (
                                    <div id={`ep-${ep.id}`} key={ep.id} className={`snap-start shrink-0 w-64 h-24 bg-[#1a1a1a] rounded-xl border flex items-center overflow-hidden transition-all group relative ${isWatched ? 'border-[#ccff00]/50' : 'border-white/10 hover:border-white/30'}`}>
                                        <div className="w-24 h-full relative cursor-pointer" onClick={() => setSelectedEp(ep)}>
                                            <img src={getImageUrl(ep.still_path)} className={`w-full h-full object-cover ${isWatched ? '' : 'grayscale opacity-60'}`} />
                                        </div>
                                        <div className="flex-1 px-3 flex flex-col justify-center cursor-pointer" onClick={() => setSelectedEp(ep)}>
-                                            <span className="text-[10px] text-gray-500 font-bold tracking-wider mb-1">فصل {activeSeason} | قسمت {ep.episode_number}</span>
+                                            <span className="text-[10px] text-gray-500 font-bold tracking-wider mb-1">E{ep.episode_number}</span>
                                             <h4 className={`text-xs font-bold line-clamp-2 ${isWatched ? 'text-[#ccff00]' : 'text-gray-200'}`}>{ep.name}</h4>
                                        </div>
-                                       {released && (
+                                       {isReleased(ep.air_date) && (
                                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
                                                 <button 
                                                     onClick={(e) => { e.stopPropagation(); toggleWatched(ep.id); }}
@@ -741,6 +766,7 @@ export default function ShowDetailsPage() {
                                )
                            })}
 
+                           {/* --- END CARD --- */}
                            <div className="snap-start shrink-0 w-48 h-24 bg-gradient-to-br from-gray-900 to-black rounded-xl border border-dashed border-white/20 flex flex-col items-center justify-center gap-2 text-center p-4">
                                 {show.status === "Ended" && activeSeason === show.number_of_seasons ? (
                                     <>
@@ -757,7 +783,7 @@ export default function ShowDetailsPage() {
                        </div>
                   </div>
 
-                  {/* 2. All Episodes */}
+                  {/* 2. All Episodes List */}
                   <div>
                       <div className="flex justify-between items-center mb-6">
                           <h3 className="font-bold text-xl">لیست کامل اپیزودها</h3>
@@ -767,6 +793,14 @@ export default function ShowDetailsPage() {
                           {show.seasons?.filter((s:any) => s.season_number > 0).map((season: any) => {
                               const isExpanded = expandedSeasons.has(season.season_number);
                               const isLoading = seasonLoading[season.season_number];
+                              
+                              const loadedSeasonEpisodes = allSeasonsData[season.season_number] || [];
+                              const hasData = loadedSeasonEpisodes.length > 0;
+                              // 🔥 Fix for button state: Check if fully watched based on the now-loaded data
+                              const isFullyWatched = hasData && loadedSeasonEpisodes.every((ep:any) => 
+                                  !isReleased(ep.air_date) || watchedEpisodes.includes(ep.id)
+                              );
+
                               return (
                                   <div key={season.id} className="border border-white/10 rounded-2xl overflow-hidden bg-[#111]">
                                       <div 
@@ -781,12 +815,23 @@ export default function ShowDetailsPage() {
                                               </div>
                                           </div>
                                           <div className="flex items-center gap-4">
+                                              {/* --- Season Button --- */}
                                               <button 
                                                 onClick={(e) => { e.stopPropagation(); toggleSeasonWatched(season.season_number, allSeasonsData[season.season_number]); }}
-                                                className="text-xs font-bold text-gray-400 hover:text-[#ccff00] border border-white/10 hover:border-[#ccff00] px-3 py-1.5 rounded-lg transition-all flex items-center gap-2"
                                                 disabled={isLoading}
+                                                className={`text-xs font-bold border px-3 py-1.5 rounded-lg transition-all flex items-center gap-2 ${
+                                                    isFullyWatched 
+                                                    ? 'bg-[#ccff00] text-black border-[#ccff00] shadow-[0_0_10px_rgba(204,255,0,0.2)]' 
+                                                    : 'text-gray-400 hover:text-[#ccff00] border-white/10 hover:border-[#ccff00]'
+                                                }`}
                                               >
-                                                  {isLoading ? <Loader2 className="animate-spin" size={14} /> : 'شخم زدم (کل فصل)'}
+                                                  {isLoading ? (
+                                                      <Loader2 className="animate-spin" size={14} />
+                                                  ) : isFullyWatched ? (
+                                                      <><Check size={14} strokeWidth={3} /> کامل دیدم</>
+                                                  ) : (
+                                                      'شخم زدم (کل فصل)'
+                                                  )}
                                               </button>
                                               {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                                           </div>
