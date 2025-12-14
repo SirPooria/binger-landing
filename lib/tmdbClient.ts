@@ -1,5 +1,5 @@
-const API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
-const BASE_URL = 'https://api.themoviedb.org/3';
+export const API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
+export const BASE_URL = 'https://api.themoviedb.org/3';
 
 // 1. گرفتن سریال‌های ترند هفته (برای دشبورد)
 // 1. گرفتن سریال‌های ترند هفته (با قابلیت صفحه بندی)
@@ -37,24 +37,53 @@ export const searchShows = async (query: string) => {
   }
 };
 
-// 4. گرفتن جزئیات کامل یک سریال خاص
+// دریافت جزئیات سریال (با اولویت فارسی + فال‌بک انگلیسی)
 export const getShowDetails = async (id: string) => {
   try {
-    const res = await fetch(`${BASE_URL}/tv/${id}?api_key=${API_KEY}&language=en-US`);
-    const data = await res.json();
-    return data;
+    // 1. تلاش برای دریافت دیتای فارسی
+    const resFa = await fetch(`${BASE_URL}/tv/${id}?api_key=${API_KEY}&language=fa-IR`);
+    const dataFa = await resFa.json();
+
+    // 2. اگر توضیحات (Overview) فارسی خالی بود، انگلیسی را بگیر
+    if (!dataFa.overview || dataFa.overview.trim() === "") {
+       const resEn = await fetch(`${BASE_URL}/tv/${id}?api_key=${API_KEY}&language=en-US`);
+       const dataEn = await resEn.json();
+       
+       dataFa.overview = dataEn.overview; // توضیحات انگلیسی جایگزین شود
+       dataFa.tagline = dataEn.tagline;   // شعار سریال هم همینطور
+       
+       // اگر حتی اسم فارسی هم نداشت (خیلی نادر)، اسم انگلیسی بگذار
+       if (!dataFa.name) dataFa.name = dataEn.name;
+    }
+
+    return dataFa;
   } catch (error) {
+    console.error(error);
     return null;
   }
 };
 
-// 5. گرفتن اپیزودهای یک فصل خاص
+// این کد را جایگزین getSeasonDetails قبلی کنید
 export const getSeasonDetails = async (id: string, seasonNumber: number) => {
   try {
-    const res = await fetch(`${BASE_URL}/tv/${id}/season/${seasonNumber}?api_key=${API_KEY}&language=en-US`);
-    const data = await res.json();
-    return data;
+    // تلاش ۱: دریافت نسخه فارسی
+    const resFa = await fetch(`${BASE_URL}/tv/${id}/season/${seasonNumber}?api_key=${API_KEY}&language=fa-IR`);
+    
+    if (!resFa.ok) return null;
+
+    const dataFa = await resFa.json();
+
+    // تلاش ۲: اگر اپیزودها توضیحات نداشتند، نسخه انگلیسی را بگیر (چون امتیازات vote_average در انگلیسی کامل‌تره)
+    // این لاجیک باعث میشه نبض سریال برای بریکینگ بد و ... پر بشه
+    if (dataFa.episodes && dataFa.episodes.length > 0 && !dataFa.episodes[0].overview) {
+        const resEn = await fetch(`${BASE_URL}/tv/${id}/season/${seasonNumber}?api_key=${API_KEY}&language=en-US`);
+        const dataEn = await resEn.json();
+        return dataEn; // دیتای انگلیسی رو برگردون که امتیازاتش دقیقه
+    }
+
+    return dataFa;
   } catch (error) {
+    console.error("Season Details Error:", error);
     return null;
   }
 };

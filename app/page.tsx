@@ -1,24 +1,37 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Eye, Sparkles, ArrowLeft, Loader2, CheckCircle } from 'lucide-react';
-// این خط پایین، اتصال ما به دیتابیس جدیده:
+// 👇 آیکون User را اضافه کردم برای دکمه داشبورد
+import { Users, Eye, Sparkles, ArrowLeft, Loader2, CheckCircle, User } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import Link from 'next/link';
 
 export default function BingerLandingPage() {
-  // متغیرهای وضعیت (State)
+  // --- State های مربوط به لیست انتظار ---
   const [phone, setPhone] = useState("");
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState("");
 
-  // --- اینجا همون "تابع" یا دستورالعملی هست که عوضش کردیم ---
+  // --- State های مربوط به احراز هویت (جدید) ---
+  const [user, setUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // --- بررسی وضعیت لاگین در لحظه ورود ---
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      setAuthLoading(false);
+    };
+    checkUser();
+  }, []);
+
+  // --- لاجیک ثبت نام لیست انتظار ---
   const handleSubmit = async () => {
-    // 1. پاک کردن پیام‌های قبلی
     setMessage("");
     setStatus('idle');
 
-    // 2. چک کنیم شماره الکی نباشه (باید با 09 شروع بشه)
     const iranMobileRegex = /^09[0-9]{9}$/;
     if (!iranMobileRegex.test(phone)) {
       setStatus('error');
@@ -26,23 +39,18 @@ export default function BingerLandingPage() {
       return;
     }
 
-    // 3. شروع ارسال (چراغ لودینگ روشن)
     setStatus('loading');
 
     try {
-      // 4. ارسال شماره به جدول waitlist در Supabase
       const { error } = await supabase
-        .from('waitlist') // اسم جدول
-        .insert([{ phone: phone }]); // شماره‌ای که کاربر وارد کرده
+        .from('waitlist')
+        .insert([{ phone: phone }]);
 
-      if (error) {
-        throw error; // اگه ارور داد، بفرستش به بخش catch
-      }
+      if (error) throw error;
 
-      // 5. اگه همه چی خوب بود:
       setStatus('success');
-      setMessage(" تبریک، جایگاه شما رزرو شد، منتظر ما باشید");
-      setPhone(""); // پاک کردن فیلد ورودی
+      setMessage("تبریک، جایگاه شما رزرو شد، منتظر ما باشید");
+      setPhone(""); 
       
     } catch (error) {
       console.error("Supabase Error:", error);
@@ -50,7 +58,6 @@ export default function BingerLandingPage() {
       setMessage("مشکلی پیش آمد. شاید قبلاً ثبت‌نام کرده‌اید؟");
     }
   };
-  // ---------------------------------------------------------
 
   return (
     <div dir="rtl" className="h-screen w-full bg-[#050505] text-white font-['Vazirmatn'] overflow-hidden relative selection:bg-[#ccff00] selection:text-black flex flex-col">
@@ -59,15 +66,38 @@ export default function BingerLandingPage() {
       <div className="fixed top-[-20%] right-[-10%] w-[500px] h-[500px] bg-cyan-500/20 rounded-full blur-[100px] pointer-events-none" />
       <div className="fixed bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-[#ccff00]/10 rounded-full blur-[100px] pointer-events-none" />
 
-      {/* --- Header --- */}
+      {/* --- Header (هوشمند سازی شده) --- */}
       <nav className="w-full z-50 flex justify-between items-center px-8 py-6">
         <div className="flex items-center gap-3">
             <img src="/Logo.png" alt="Logo" className="h-10 w-auto object-contain" />
             <span className="text-[10px] text-gray-400 hidden sm:block">اپلیکیشن ردیابی سریال</span>
         </div>
-        <button className="text-sm font-medium text-gray-400 hover:text-white transition-colors">
-          ورود اعضا
-        </button>
+
+        {/* 👇 دکمه هوشمند ورود/داشبورد 👇 */}
+        <div>
+            {authLoading ? (
+                // حالت لودینگ (یک دکمه خالی طوسی)
+                <div className="h-10 w-32 bg-white/10 rounded-full animate-pulse"></div>
+            ) : user ? (
+                // اگر کاربر لاگین بود -> برو به داشبورد
+                <Link 
+                    href="/dashboard" 
+                    className="bg-[#ccff00] text-black px-6 py-3 rounded-full font-black text-sm hover:bg-[#b3e600] transition-all shadow-[0_0_20px_rgba(204,255,0,0.4)] flex items-center gap-2"
+                >
+                    <User size={18} strokeWidth={2.5} />
+                    برو به داشبورد
+                </Link>
+            ) : (
+                // اگر کاربر لاگین نبود -> دکمه ورود
+                <Link 
+                    href="/login" 
+                    className="bg-white/10 border border-white/20 text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-white/20 transition-all flex items-center gap-2"
+                >
+                    ورود / ثبت‌نام
+                    <ArrowLeft size={18} />
+                </Link>
+            )}
+        </div>
       </nav>
 
       {/* --- Main Layout --- */}

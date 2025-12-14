@@ -6,7 +6,6 @@ import { getShowDetails, getBackdropUrl, getImageUrl } from '@/lib/tmdbClient';
 import { useRouter } from 'next/navigation';
 import { Loader2, ArrowRight, Zap, Settings, Users, MessageSquare, Heart, Plus, Award, X, Clock, Play, User as UserIcon, Calendar, Lock, CheckCircle } from 'lucide-react';
 
-// --- لیست کامل مدال‌ها (20+ آیتم) ---
 const ALL_ACHIEVEMENTS = [
     { id: 'newbie', title: 'تازه‌وارد', icon: '🐣', desc: 'اولین اپیزود رو تماشا کردی.', threshold: 1, type: 'eps' },
     { id: 'starter', title: 'استارت قوی', icon: '🚀', desc: '۱۰ اپیزود تماشا کردی.', threshold: 10, type: 'eps' },
@@ -16,18 +15,8 @@ const ALL_ACHIEVEMENTS = [
     { id: 'binge_r', title: 'بینجر واقعی', icon: '🍿', desc: '۲۵۰ اپیزود تماشا کردی.', threshold: 250, type: 'eps' },
     { id: 'zombie', title: 'زامبی', icon: '🧟‍♂️', desc: '۵۰۰ اپیزود! خواب نداری؟', threshold: 500, type: 'eps' },
     { id: 'legend', title: 'اسطوره', icon: '👑', desc: '۱۰۰۰ اپیزود. تو یه افسانه‌ای.', threshold: 1000, type: 'eps' },
-    { id: 'alien', title: 'فرازمینی', icon: '👽', desc: '۲۰۰۰ اپیزود. از کدوم سیاره اومدی؟', threshold: 2000, type: 'eps' },
     { id: 'critic_jr', title: 'منتقد جوان', icon: '📝', desc: '۵ تا کامنت گذاشتی.', threshold: 5, type: 'comments' },
-    { id: 'critic_pro', title: 'منتقد حرفه‌ای', icon: '✍️', desc: '۲۰ تا کامنت گذاشتی.', threshold: 20, type: 'comments' },
-    { id: 'social', title: 'اجتماعی', icon: '🗣️', desc: '۵۰ تا کامنت گذاشتی.', threshold: 50, type: 'comments' },
     { id: 'famous', title: 'معروف', icon: '😎', desc: '۱۰ نفر فالوت کردن.', threshold: 10, type: 'followers' },
-    { id: 'influencer', title: 'اینفلوئنسر', icon: '💎', desc: '۵۰ نفر فالوت کردن.', threshold: 50, type: 'followers' },
-    { id: 'night_owl', title: 'جغد شب', icon: '🦉', desc: 'تماشا بین ساعت ۲ تا ۵ صبح.', threshold: 1, type: 'special' }, // نیاز به لاجیک خاص
-    { id: 'early_bird', title: 'سحرخیز', icon: '🐓', desc: 'تماشا بین ساعت ۶ تا ۹ صبح.', threshold: 1, type: 'special' },
-    { id: 'weekend', title: 'تعطیلات', icon: '🏖️', desc: 'تماشا در روز جمعه.', threshold: 1, type: 'special' },
-    { id: 'marathon', title: 'ماراتن', icon: '🏃', desc: 'تماشای ۱۰ قسمت در یک روز.', threshold: 1, type: 'special' },
-    { id: 'genre_scifi', title: 'دانشمند', icon: '🧪', desc: 'عاشق ژانر علمی تخیلی.', threshold: 1, type: 'special' },
-    { id: 'genre_comedy', title: 'بمب خنده', icon: '😂', desc: 'عاشق ژانر کمدی.', threshold: 1, type: 'special' },
 ];
 
 export default function ProfilePage() {
@@ -49,8 +38,7 @@ export default function ProfilePage() {
   const [activeModal, setActiveModal] = useState<'followers' | 'following' | 'comments' | null>(null);
   const [modalList, setModalList] = useState<any[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
-  
-  const [selectedBadge, setSelectedBadge] = useState<any>(null); // برای پاپ آپ مدال
+  const [selectedBadge, setSelectedBadge] = useState<any>(null);
 
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -61,36 +49,80 @@ export default function ProfilePage() {
       // 1. Data Fetching
       const { data: watchedData } = await supabase.from('watched').select('show_id, created_at');
       
-      if (watchedData) {
+      if (watchedData && watchedData.length > 0) {
         setTotalEpisodes(watchedData.length);
-        const totalMinutes = watchedData.length * 40;
-        setTimeStats({
-            months: Math.floor(totalMinutes / (30 * 24 * 60)),
-            days: Math.floor((totalMinutes % (30 * 24 * 60)) / (24 * 60)),
-            hours: Math.floor((totalMinutes % (24 * 60)) / 60)
+
+        // --- محاسبه دقیق زمان (New Logic) ---
+        // 1. پیدا کردن آیدی سریال‌های یکتا
+        const uniqueShowIds = Array.from(new Set(watchedData.map((i: any) => i.show_id)));
+        
+        // 2. دریافت جزئیات هر سریال (برای گرفتن Runtime دقیق)
+        // نکته: برای پرفورمنس بهتر، فعلا همه را می‌گیریم. در اسکیل بالا باید این دیتا کش شود.
+        // 1. پیدا کردن آیدی سریال‌های یکتا
+        // نام متغیر را اینجا اصلاح کردیم تا با پایین یکی شود: uniqueIds
+        const uniqueIds = Array.from(new Set(watchedData.map((i: any) => i.show_id)));
+        
+        // 2. دریافت جزئیات هر سریال
+        const showsDetailsMap: any = {};
+        await Promise.all(uniqueIds.map(async (id) => {
+            const d = await getShowDetails(String(id));
+            if (d) showsDetailsMap[id] = d;
+        }));
+
+        // 3. محاسبه مجموع دقایق
+        let totalMinutes = 0;
+        watchedData.forEach((item: any) => {
+            const show = showsDetailsMap[item.show_id];
+            // اگر runtime داشت استفاده کن، اگر نه میانگین ۴۵ دقیقه رو بگیر (برای خطا)
+            const runtime = show?.episode_run_time?.length > 0 
+                ? (show.episode_run_time.reduce((a:number, b:number) => a + b, 0) / show.episode_run_time.length) 
+                : 45; 
+            totalMinutes += runtime;
         });
 
-        if (watchedData.length > 0) {
-            // Sort by recent
-            watchedData.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-            
-            // Cover Image
-            const lastShowId = watchedData[0].show_id;
-            const showDetails = await getShowDetails(String(lastShowId));
-            if (showDetails) setCoverImage(getBackdropUrl(showDetails.backdrop_path));
+        // 4. تبدیل به ماه/روز/ساعت (با لاجیک صحیح باقی‌مانده)
+        const daysTotal = Math.floor(totalMinutes / (24 * 60));
+        const hoursTotal = Math.floor((totalMinutes % (24 * 60)) / 60);
+        
+        // تبدیل روزها به ماه و روز (فرض: هر ماه ۳۰ روز)
+        const months = Math.floor(daysTotal / 30);
+        const days = daysTotal % 30;
 
-            // Recent Shows
-            const uniqueIds = Array.from(new Set(watchedData.map((i:any) => i.show_id))).slice(0, 10);
-            const recents = await Promise.all(uniqueIds.map(async (id) => {
-                const d = await getShowDetails(String(id));
-                if (!d) return null;
-                const totalReleased = d.seasons?.reduce((sum: number, season: any) => sum + (season.air_date && new Date(season.air_date) <= new Date() ? season.episode_count : 0), 0) || 0;
-                const watchedCount = watchedData.filter((w: any) => w.show_id === id).length;
-                const progress = totalReleased > 0 ? Math.round((watchedCount / totalReleased) * 100) : 0;
-                return { ...d, progress };
-            }));
-            setRecentShows(recents.filter(s => s !== null));
+        setTimeStats({ months, days, hours: hoursTotal });
+
+
+        // --- کاور و لیست اخیر ---
+        // مرتب‌سازی بر اساس تاریخ تماشا
+        watchedData.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        
+        const lastShowId = watchedData[0].show_id;
+        if (showsDetailsMap[lastShowId]) {
+            setCoverImage(getBackdropUrl(showsDetailsMap[lastShowId].backdrop_path));
         }
+
+        // Recent Shows Logic
+        const recentUniqueIds = Array.from(new Set(watchedData.map((i:any) => i.show_id))).slice(0, 10);
+        
+        const recents = recentUniqueIds.map((id) => {
+            const d = showsDetailsMap[id];
+            if (!d) return null;
+
+            // --- محاسبه دقیق درصد (بدون فصل صفر) ---
+            const totalReleased = d.seasons?.reduce((sum: number, season: any) => {
+                // شرط مهم: فصل صفر (Specials) و فصل‌های منتشر نشده را نادیده بگیر
+                if (season.season_number === 0) return sum;
+                if (season.air_date && new Date(season.air_date) > new Date()) return sum;
+                return sum + season.episode_count;
+            }, 0) || 0;
+
+            const watchedCount = watchedData.filter((w: any) => w.show_id === id).length;
+            
+            // درصد نهایی (حداکثر ۱۰۰٪)
+            const progress = totalReleased > 0 ? Math.min(100, Math.round((watchedCount / totalReleased) * 100)) : 0;
+            
+            return { ...d, progress };
+        });
+        setRecentShows(recents.filter(s => s !== null));
       }
 
       // Social Stats
@@ -120,7 +152,6 @@ export default function ProfilePage() {
 
       let data: any[] = [];
       if (type === 'followers') {
-          // برای فالوورها آیدی هم میگیریم که بشه رفت تو پروفایلشون
           const res = await supabase.from('follows').select('follower_id, follower_email').eq('following_id', user.id);
           data = res.data?.map(d => ({ id: d.follower_id, title: d.follower_email.split('@')[0], subtitle: 'Follower' })) || [];
       } else if (type === 'following') {
@@ -145,12 +176,11 @@ export default function ProfilePage() {
       setModalLoading(false);
   };
 
-  // چک کردن وضعیت مدال
   const checkBadgeStatus = (badge: any) => {
       if (badge.type === 'eps') return totalEpisodes >= badge.threshold;
       if (badge.type === 'comments') return socialStats.comments >= badge.threshold;
       if (badge.type === 'followers') return socialStats.followers >= badge.threshold;
-      return false; // برای special ها فعلا قفل
+      return false;
   };
 
   if (loading) return <div className="h-screen bg-[#050505] flex items-center justify-center text-[#ccff00]"><Loader2 className="animate-spin" size={48} /></div>;
@@ -158,33 +188,22 @@ export default function ProfilePage() {
   return (
     <div dir="rtl" className="min-h-screen bg-[#050505] text-white font-['Vazirmatn'] pb-24 overflow-x-hidden">
       
-      {/* --- BADGE DETAIL POPUP --- */}
       {selectedBadge && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-md p-6 animate-in zoom-in-95 duration-200" onClick={() => setSelectedBadge(null)}>
               <div className="bg-[#1a1a1a] border border-white/10 w-full max-w-sm rounded-3xl p-8 flex flex-col items-center text-center relative shadow-2xl" onClick={e => e.stopPropagation()}>
                   <button onClick={() => setSelectedBadge(null)} className="absolute top-4 left-4 bg-white/5 p-2 rounded-full hover:bg-white/10"><X size={20} /></button>
-                  
-                  <div className={`w-32 h-32 rounded-full flex items-center justify-center text-6xl mb-6 border-4 ${checkBadgeStatus(selectedBadge) ? 'bg-[#ccff00]/10 border-[#ccff00] shadow-[0_0_30px_rgba(204,255,0,0.3)]' : 'bg-white/5 border-white/10 grayscale opacity-50'}`}>
-                      {selectedBadge.icon}
-                  </div>
-                  
+                  <div className={`w-32 h-32 rounded-full flex items-center justify-center text-6xl mb-6 border-4 ${checkBadgeStatus(selectedBadge) ? 'bg-[#ccff00]/10 border-[#ccff00] shadow-[0_0_30px_rgba(204,255,0,0.3)]' : 'bg-white/5 border-white/10 grayscale opacity-50'}`}>{selectedBadge.icon}</div>
                   <h3 className="text-2xl font-black mb-2">{selectedBadge.title}</h3>
                   <p className="text-gray-400 text-sm mb-6 leading-relaxed">{selectedBadge.desc}</p>
-                  
                   {checkBadgeStatus(selectedBadge) ? (
-                      <div className="bg-[#ccff00]/10 text-[#ccff00] px-6 py-2 rounded-xl font-bold text-sm flex items-center gap-2">
-                          <CheckCircle size={18} /> دریافت شده
-                      </div>
+                      <div className="bg-[#ccff00]/10 text-[#ccff00] px-6 py-2 rounded-xl font-bold text-sm flex items-center gap-2"><CheckCircle size={18} /> دریافت شده</div>
                   ) : (
-                      <div className="bg-white/5 text-gray-500 px-6 py-2 rounded-xl font-bold text-sm flex items-center gap-2">
-                          <Lock size={18} /> قفل است
-                      </div>
+                      <div className="bg-white/5 text-gray-500 px-6 py-2 rounded-xl font-bold text-sm flex items-center gap-2"><Lock size={18} /> قفل است</div>
                   )}
               </div>
           </div>
       )}
 
-      {/* --- HEADER --- */}
       <div className="relative w-full h-[55vh]">
           <div className="absolute inset-0">
               {coverImage ? <img src={coverImage} className="w-full h-full object-cover opacity-80" /> : <div className="w-full h-full bg-gradient-to-br from-purple-900 to-black"></div>}
@@ -194,7 +213,6 @@ export default function ProfilePage() {
 
           <div className="absolute top-0 w-full p-6 flex justify-between items-center z-20">
               <button onClick={() => router.back()} className="bg-white/10 hover:bg-white/20 backdrop-blur-md p-3 rounded-full transition-all border border-white/5"><ArrowRight size={20} /></button>
-              {/* دکمه تنظیمات (فعلا الرت میده تا پیاده بشه) */}
               <button onClick={() => alert("بخش تنظیمات در مرحله بعدی ساخته می‌شود!")} className="bg-white/10 hover:bg-white/20 backdrop-blur-md p-3 rounded-full transition-all border border-white/5"><Settings size={20} /></button>
           </div>
 
@@ -205,7 +223,6 @@ export default function ProfilePage() {
               </div>
               
               <h1 className="text-3xl md:text-4xl font-black mt-4 ltr tracking-tight">{user?.email?.split('@')[0]}</h1>
-              {/* دکمه ویرایش پروفایل (هنوز کار نمیکنه طبق نقشه) */}
               <button onClick={() => alert("ویرایش پروفایل بزودی!")} className="text-gray-400 text-xs mt-2 font-medium bg-white/5 px-4 py-1.5 rounded-full border border-white/5 backdrop-blur-sm hover:bg-white/10 transition-all">ویرایش پروفایل</button>
 
               <div className="flex items-center gap-2 mt-6 bg-white/5 border border-white/10 backdrop-blur-xl p-1.5 rounded-2xl shadow-xl">
@@ -218,10 +235,8 @@ export default function ProfilePage() {
           </div>
       </div>
 
-      {/* --- MAIN CONTENT --- */}
       <div className="max-w-5xl mx-auto px-4 mt-20 space-y-10">
           
-          {/* STATS & TROPHY */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="md:col-span-2 bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-3xl p-6 relative overflow-hidden group">
                   <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><Clock size={100} /></div>
@@ -240,18 +255,13 @@ export default function ProfilePage() {
                   <p className="text-[10px] font-bold mt-1 opacity-60">اپیزود تماشا شده</p>
               </div>
 
-              {/* TROPHY CASE (UPDATED) */}
               <div className="md:col-span-3 bg-white/5 border border-white/10 rounded-3xl p-6">
                   <h3 className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-6 flex items-center gap-2"><Award className="text-pink-500" size={14} /> ویترین افتخارات ({ALL_ACHIEVEMENTS.filter(b => checkBadgeStatus(b)).length})</h3>
                   <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
                       {ALL_ACHIEVEMENTS.map((badge) => {
                           const isUnlocked = checkBadgeStatus(badge);
                           return (
-                              <div 
-                                key={badge.id} 
-                                onClick={() => setSelectedBadge(badge)}
-                                className={`shrink-0 flex flex-col items-center gap-2 p-3 rounded-2xl border min-w-[100px] cursor-pointer transition-all hover:scale-105 ${isUnlocked ? 'bg-white/10 border-white/20' : 'bg-white/5 border-white/5 opacity-40 grayscale'}`}
-                              >
+                              <div key={badge.id} onClick={() => setSelectedBadge(badge)} className={`shrink-0 flex flex-col items-center gap-2 p-3 rounded-2xl border min-w-[100px] cursor-pointer transition-all hover:scale-105 ${isUnlocked ? 'bg-white/10 border-white/20' : 'bg-white/5 border-white/5 opacity-40 grayscale'}`}>
                                   <div className="text-4xl drop-shadow-md">{badge.icon}</div>
                                   <span className={`text-[10px] font-bold ${isUnlocked ? 'text-white' : 'text-gray-500'}`}>{badge.title}</span>
                               </div>
@@ -261,14 +271,11 @@ export default function ProfilePage() {
               </div>
           </div>
 
-          {/* FAVORITES */}
           <div>
               <div className="flex justify-between items-end mb-6">
                   <h2 className="text-2xl font-black flex items-center gap-3"><Heart className="text-red-500 fill-red-500" size={28} /> محبوب‌ترین‌های من</h2>
-                  {/* دکمه افزودن لیست - فعلا الرت */}
                   <button onClick={() => alert("بخش ساخت لیست در مرحله بعدی!")} className="text-xs bg-white/5 hover:bg-white/10 px-4 py-2 rounded-xl transition-all flex items-center gap-2 border border-white/10"><Plus size={14} /> مدیریت لیست</button>
               </div>
-              
               {favorites.length > 0 ? (
                   <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
                       {favorites.map((s) => (
@@ -283,7 +290,6 @@ export default function ProfilePage() {
               )}
           </div>
 
-          {/* RECENT ACTIVITY */}
           <div className="pb-10">
               <h2 className="text-xl font-bold mb-6 flex items-center gap-2"><Calendar size={20} className="text-cyan-400" /> سریال‌های مشاهده شده</h2>
               {recentShows.length > 0 ? (
@@ -303,10 +309,8 @@ export default function ProfilePage() {
                   <p className="text-gray-500 text-sm">هیچ فعالیتی ثبت نشده است.</p>
               )}
           </div>
-
       </div>
 
-      {/* --- LARGE MODAL (User List / Comments) --- */}
       {activeModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-xl p-4 animate-in fade-in duration-300" onClick={() => setActiveModal(null)}>
             <div className="bg-[#0f0f0f] border border-white/10 w-full max-w-2xl rounded-[2rem] overflow-hidden flex flex-col max-h-[80vh] shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -343,38 +347,22 @@ export default function ProfilePage() {
                                             <span className="text-base font-bold text-white ltr text-left">{item.title}</span>
                                             <span className="text-xs text-gray-500 ltr text-left">{item.subtitle}</span>
                                         </div>
-                                        {/* دکمه اصلاح شده */}
-                                        <button 
-                                            onClick={() => router.push(item.id ? `/dashboard/user/${item.id}` : '#')}
-                                            className="text-xs border border-white/20 px-4 py-2 rounded-full hover:bg-[#ccff00] hover:text-black hover:border-[#ccff00] transition-all font-bold"
-                                        >
-                                            مشاهده پروفایل
-                                        </button>
+                                        <button onClick={() => router.push(item.id ? `/dashboard/user/${item.id}` : '#')} className="text-xs border border-white/20 px-4 py-2 rounded-full hover:bg-[#ccff00] hover:text-black hover:border-[#ccff00] transition-all font-bold">مشاهده پروفایل</button>
                                     </>
                                 )}
                             </div>
                         ))
                     ) : (
-                        <div className="flex flex-col items-center justify-center py-20 text-gray-600 gap-4">
-                            <UserIcon size={48} strokeWidth={1} />
-                            <p>لیست خالی است.</p>
-                        </div>
+                        <div className="flex flex-col items-center justify-center py-20 text-gray-600 gap-4"><UserIcon size={48} strokeWidth={1} /><p>لیست خالی است.</p></div>
                     )}
                 </div>
             </div>
         </div>
       )}
-
     </div>
   );
 }
 
-// --- COMPONENTS ---
 function SocialItem({ count, label, onClick }: any) {
-    return (
-        <button onClick={onClick} className="flex flex-col items-center justify-center w-20 py-2 hover:bg-white/5 rounded-xl transition-all cursor-pointer group">
-            <span className="text-lg font-black text-white group-hover:text-[#ccff00] transition-colors">{count}</span>
-            <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wide">{label}</span>
-        </button>
-    );
+    return (<button onClick={onClick} className="flex flex-col items-center justify-center w-20 py-2 hover:bg-white/5 rounded-xl transition-all cursor-pointer group"><span className="text-lg font-black text-white group-hover:text-[#ccff00] transition-colors">{count}</span><span className="text-[10px] uppercase font-bold text-gray-500 tracking-wide">{label}</span></button>);
 }
