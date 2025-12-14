@@ -24,3 +24,36 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+/* app/globals.css */
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes marquee-reverse {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+
+.animate-marquee-slow {
+  animation: marquee 60s linear infinite;
+}
+
+.animate-marquee-reverse {
+  animation: marquee-reverse 70s linear infinite;
+}
+/* app/globals.css */
+
+@layer utilities {
+  /* مخفی کردن اسکرول‌بار در کروم، سافاری و اج */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* مخفی کردن اسکرول‌بار در فایرفاکس و IE */
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+}

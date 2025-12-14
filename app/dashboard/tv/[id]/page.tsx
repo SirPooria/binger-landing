@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getShowDetails, getSeasonDetails, getImageUrl, getBackdropUrl, getSimilarShows, BASE_URL, API_KEY } from '@/lib/tmdbClient';
 import { supabase } from '@/lib/supabaseClient';
-import { ArrowRight, Star, Calendar, Clock, Loader2, CheckCheck, Plus, Check, MessageSquare, Hourglass, Share2, Play, Info, RotateCcw, ChevronDown, ChevronUp, Heart, Activity, BarChart2, Search, Users, Tag, AlertTriangle, CheckCircle2, X, ChevronLeft } from 'lucide-react';
+import { ArrowRight, Star, Loader2, Check, Plus, Share2, Play, Info, RotateCcw, ChevronDown, ChevronUp, BarChart2, Search, Users, Tag, CheckCircle2 } from 'lucide-react';
 import EpisodeModal from '../../components/EpisodeModal';
 import confetti from 'canvas-confetti'; 
 
@@ -106,7 +106,6 @@ export default function ShowDetailsPage() {
       if (carouselRef.current) {
           const firstUnwatched = episodes.find(ep => !watchedEpisodes.includes(ep.id));
           const targetId = firstUnwatched ? `ep-${firstUnwatched.id}` : (episodes.length > 0 ? `ep-${episodes[episodes.length-1].id}` : null);
-          
           if (targetId) {
               const el = document.getElementById(targetId);
               if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
@@ -323,11 +322,9 @@ export default function ShowDetailsPage() {
     setSeasonLoading(prev => ({...prev, [seasonNum]: false}));
   };
 
-  // --- 🔥 FIX: "Whole Show" Sync Logic ---
   const handleMarkShowAsWatched = async () => {
       if(!user || !show) return;
       setWholeShowLoading(true);
-      
       try {
           const seasonPromises = show.seasons
             .filter((s:any) => s.season_number > 0)
@@ -335,8 +332,6 @@ export default function ShowDetailsPage() {
           
           const allSeasonsResults = await Promise.all(seasonPromises);
           
-          // 🔥 NEW: Inject data into State immediately!
-          // This fixes the bug where buttons don't update until expanded.
           const newSeasonsData = { ...allSeasonsData };
           allSeasonsResults.forEach((s: any) => {
              if (s?.season_number && s?.episodes) {
@@ -366,16 +361,12 @@ export default function ShowDetailsPage() {
               episode_id: id
           }));
 
-          // Chunking (Batch of 20)
           const chunkSize = 20; 
           for (let i = 0; i < records.length; i += chunkSize) {
               const chunk = records.slice(i, i + chunkSize);
               const { error } = await supabase.from('watched').upsert(chunk, { onConflict: 'user_id, episode_id' });
               
-              if (error) {
-                  console.error("Supabase Upsert Error:", error);
-                  throw new Error(`خطا در دیتابیس: ${error.message}`);
-              }
+              if (error) throw new Error(`خطا در دیتابیس: ${error.message}`);
           }
           
           setWatchedEpisodes(prev => {
@@ -556,10 +547,12 @@ export default function ShowDetailsPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 mt-8 pb-20">
-          {/* TAB 1: ABOUT */}
+          
+          {/* ================= TAB 1: ABOUT (RESTORED FULLY) ================= */}
           {activeTab === 'about' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4">
                   <div className="lg:col-span-2 space-y-8">
+                      
                       <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
                            <h3 className="font-bold text-gray-200 mb-4 flex items-center gap-2"><Info className="text-[#ccff00]" size={18} /> خلاصه داستان</h3>
                            <p className="text-gray-300 leading-relaxed text-sm md:text-base text-justify">
@@ -567,12 +560,14 @@ export default function ShowDetailsPage() {
                            </p>
                       </div>
 
+                      {/* 🔥🔥 FIX: RATING LTR FIX 🔥🔥 */}
                       <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
                           <h3 className="font-bold text-gray-200 mb-4 flex items-center gap-2"><Star className="text-[#ccff00]" size={18} /> امتیازدهی</h3>
                           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                              {/* 1. Your Rating */}
                               <div className="flex-1">
                                   <p className="text-xs text-gray-400 mb-2 font-bold">امتیاز شما:</p>
-                                  <div className="flex items-center gap-4">
+                                  <div className="flex items-center gap-4" dir="ltr"> {/* LTR Force */}
                                       <div className="flex gap-1">
                                           {[1, 2, 3, 4, 5].map((star) => (
                                               <Star 
@@ -588,9 +583,11 @@ export default function ShowDetailsPage() {
                                   </div>
                               </div>
                               <div className="w-full md:w-px h-px md:h-12 bg-white/10"></div>
+                              
+                              {/* 2. User Rating */}
                               <div className="flex-1">
                                   <p className="text-xs text-gray-400 mb-2 font-bold flex items-center gap-2">امتیاز کاربران بینجر <Users size={14} /></p>
-                                  <div className="flex items-center gap-4">
+                                  <div className="flex items-center gap-4" dir="ltr"> {/* LTR Force */}
                                       <div className="flex items-end gap-1">
                                           <span className="text-3xl font-black text-white">{bingerStats.avg > 0 ? bingerStats.avg.toFixed(1) : '-'}</span>
                                           <span className="text-sm text-gray-500 mb-1">/ 5</span>
@@ -796,7 +793,6 @@ export default function ShowDetailsPage() {
                               
                               const loadedSeasonEpisodes = allSeasonsData[season.season_number] || [];
                               const hasData = loadedSeasonEpisodes.length > 0;
-                              // 🔥 Fix for button state: Check if fully watched based on the now-loaded data
                               const isFullyWatched = hasData && loadedSeasonEpisodes.every((ep:any) => 
                                   !isReleased(ep.air_date) || watchedEpisodes.includes(ep.id)
                               );
