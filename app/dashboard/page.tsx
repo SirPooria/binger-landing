@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { 
@@ -13,7 +13,16 @@ import {
   Globe, Activity, ChevronLeft, ChevronRight 
 } from 'lucide-react';
 
+// --- WRAPPER COMPONENT (FIX FOR VERCEL ERROR) ---
 export default function Dashboard() {
+  return (
+    <Suspense fallback={<div className="h-screen bg-[#050505] flex items-center justify-center text-[#ccff00]"><Loader2 className="animate-spin" size={48} /></div>}>
+       <DashboardContent />
+    </Suspense>
+  );
+}
+
+function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryFromUrl = searchParams.get('q'); 
@@ -22,9 +31,11 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
+  // Search
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   
+  // Data
   const [watchlistIds, setWatchlistIds] = useState<Set<number>>(new Set());
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [heroShows, setHeroShows] = useState<any[]>([]); 
@@ -42,6 +53,7 @@ export default function Dashboard() {
       anime: [] as any[]
   });
 
+  // --- Search Logic ---
   useEffect(() => {
       const performSearch = async () => {
           if (queryFromUrl && queryFromUrl.length > 1) {
@@ -56,6 +68,7 @@ export default function Dashboard() {
       performSearch();
   }, [queryFromUrl]);
 
+  // --- Main Data Logic ---
   useEffect(() => {
     const initData = async () => {
       try {
@@ -107,7 +120,6 @@ export default function Dashboard() {
         });
 
         const allFetchedShows = [...(newGlobalData || []), ...(trendDataRaw || []), ...(animeData || []), ...(newIranianData || [])];
-        // Ensure myShowIds is defined or use local logic
         const myShowIds = new Set(wList?.map((i:any) => i.show_id));
         const personalFeed = allFetchedShows.filter((show: any, index, self) => index === self.findIndex((t) => t.id === show.id) && myShowIds.has(show.id));
         setMyFeed(personalFeed);
@@ -171,10 +183,9 @@ export default function Dashboard() {
         )}
 
         {/* 1. HERO SLIDER */}
-        {/* نکته: اینجا ارتفاع را تنظیم کردم تا زیر هدر نرود و اسکرول اضافی نسازد */}
         {heroShows.length > 0 && <HeroSlider shows={heroShows} router={router} watchlistIds={watchlistIds} onToggle={toggleWatchlist} />}
 
-        {/* 2. TABS (Sticky زیر هیرو نیست، بلکه داخل فلو است) */}
+        {/* 2. TABS */}
         <div className="flex justify-center mb-8 -mt-8 relative z-20">
             <div className="bg-black/60 backdrop-blur-xl border border-white/10 p-1.5 rounded-2xl flex shadow-2xl">
                 <button onClick={() => setActiveTab('discovery')} className={`px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'discovery' ? 'bg-[#ccff00] text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}>
@@ -223,7 +234,6 @@ function HeroSlider({ shows, router, watchlistIds, onToggle }: any) {
     };
 
     return (
-        // ارتفاع کمتر برای نمایش بهتر در لپ‌تاپ
         <div className="relative w-full h-[55vh] md:h-[65vh] group mb-8">
             <div ref={scrollRef} onScroll={handleScroll} className="flex overflow-x-auto snap-x snap-mandatory h-full w-full no-scrollbar scroll-smooth" dir="ltr">
                 {shows.map((show: any, index: number) => {
