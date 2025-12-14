@@ -117,4 +117,4 @@ function MenuItem({ icon, label, active = false, onClick }: any) {
             {active && <div className="mr-auto w-1.5 h-1.5 rounded-full bg-black"></div>}
         </div>
     );
-}
+} 
