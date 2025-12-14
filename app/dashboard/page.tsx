@@ -234,20 +234,53 @@ function HeroSlider({ shows, router, watchlistIds, onToggle }: any) {
     };
 
     return (
-        <div className="relative w-full h-[55vh] md:h-[65vh] group mb-8">
+        <div className="relative w-full h-[65vh] md:h-[75vh] group mb-8">
             <div ref={scrollRef} onScroll={handleScroll} className="flex overflow-x-auto snap-x snap-mandatory h-full w-full no-scrollbar scroll-smooth" dir="ltr">
                 {shows.map((show: any, index: number) => {
                     const isAdded = watchlistIds.has(show.id);
+                    // لاجیک اسم دو زبانه: اگر اسم اصلی با اسم ترجمه شده فرق داشت، هر دو را نشان بده
+                    const hasPersianName = show.name !== show.original_name;
+                    
                     return (
                         <div key={show.id} className="snap-center shrink-0 w-full h-full relative">
                             <img src={getBackdropUrl(show.backdrop_path)} className="w-full h-full object-cover opacity-60" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/40 to-transparent"></div>
                             
-                            <div className="absolute bottom-0 right-0 w-full p-6 md:p-12 flex flex-col items-end text-right pb-16 md:pb-20" dir="rtl">
-                                <h1 className="text-3xl md:text-6xl font-black text-white drop-shadow-2xl mb-4 line-clamp-2 leading-tight">{show.name}</h1>
-                                <div className="flex gap-3">
-                                    <button onClick={() => router.push(`/dashboard/tv/${show.id}`)} className="bg-[#ccff00] text-black px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-[#b3e600] transition-all"><Info size={20} /> اطلاعات</button>
-                                    <button onClick={() => onToggle(show.id)} className={`px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 border transition-all ${isAdded ? 'bg-white text-black' : 'bg-black/50 text-white border-white/50'}`}>
+                            {/* Gradients for readability */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/40 to-transparent"></div>
+                            <div className="absolute inset-0 bg-gradient-to-r from-[#050505]/80 via-transparent to-transparent"></div>
+                            
+                            {/* Content Container (Fixed: Right Aligned & RTL) */}
+                            <div className="absolute bottom-0 right-0 w-full md:w-2/3 p-6 md:p-16 flex flex-col items-start gap-4 pb-20 md:pb-24 z-10" dir="rtl">
+                                
+                                {/* Badge */}
+                                <div className="flex items-center gap-2">
+                                    <span className="bg-[#ccff00] text-black text-[10px] font-black px-2 py-0.5 rounded uppercase">Trending #{index + 1}</span>
+                                    {show.origin_country?.includes('IR') && <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">ایران 🇮🇷</span>}
+                                </div>
+
+                                {/* Titles (English + Persian) */}
+                                <div>
+                                    <h1 className="text-4xl md:text-6xl font-black text-white drop-shadow-2xl leading-tight text-right">
+                                        {show.name}
+                                    </h1>
+                                    {hasPersianName && (
+                                        <h2 className="text-lg md:text-2xl text-gray-300 font-bold mt-1 text-right ltr opacity-80">
+                                            {show.original_name}
+                                        </h2>
+                                    )}
+                                </div>
+
+                                {/* Overview (Restored) */}
+                                <p className="text-gray-200 text-xs md:text-sm leading-relaxed max-w-xl text-justify line-clamp-3 md:line-clamp-4">
+                                    {show.overview || "توضیحات این سریال به زودی تکمیل می‌شود..."}
+                                </p>
+                                
+                                {/* Buttons (Right Aligned) */}
+                                <div className="flex gap-3 mt-2 w-full md:w-auto">
+                                    <button onClick={() => router.push(`/dashboard/tv/${show.id}`)} className="flex-1 md:flex-none bg-[#ccff00] hover:bg-[#b3e600] text-black px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-transform active:scale-95 cursor-pointer text-sm shadow-lg shadow-[#ccff00]/20">
+                                        <Info size={20} /> اطلاعات
+                                    </button>
+                                    <button onClick={() => onToggle(show.id)} className={`flex-1 md:flex-none px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 border transition-transform active:scale-95 cursor-pointer text-sm ${isAdded ? 'bg-white text-black border-white' : 'bg-white/10 hover:bg-white/20 text-white border-white/20'}`}>
                                         {isAdded ? <Check size={20} /> : <Plus size={20} />} {isAdded ? 'لیست' : 'افزودن'}
                                     </button>
                                 </div>
@@ -256,9 +289,11 @@ function HeroSlider({ shows, router, watchlistIds, onToggle }: any) {
                     );
                 })}
             </div>
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
+            
+            {/* Dots */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-1.5 z-20 bg-black/20 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/5">
                 {shows.map((_: any, idx: number) => (
-                    <div key={idx} className={`h-1.5 rounded-full transition-all duration-300 ${idx === current ? 'w-6 bg-[#ccff00]' : 'w-1.5 bg-white/50'}`}></div>
+                    <div key={idx} onClick={() => { if(scrollRef.current) scrollRef.current.scrollTo({left: -(idx * scrollRef.current.clientWidth), behavior: 'smooth'}) }} className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${idx === current ? 'w-6 bg-[#ccff00]' : 'w-1.5 bg-white/50'}`}></div>
                 ))}
             </div>
         </div>
