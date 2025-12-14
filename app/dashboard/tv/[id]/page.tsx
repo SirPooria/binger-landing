@@ -72,7 +72,7 @@ export default function ShowDetailsPage() {
   const [similarShows, setSimilarShows] = useState<any[]>([]);
   const [myRating, setMyRating] = useState(0); 
   const [bingerStats, setBingerStats] = useState({ avg: 0, count: 0 });
-  const [userVote, setUserVote] = useState<string | null>(null);
+  const [userVotes, setUserVotes] = useState<string[]>([]); // 🔥 تغییر به آرایه برای چند انتخابی
   const [pollStats, setPollStats] = useState<any>({}); 
   const [totalVotes, setTotalVotes] = useState(0);
   const [inWatchlist, setInWatchlist] = useState(false);
@@ -117,8 +117,11 @@ export default function ShowDetailsPage() {
 
   // --- Fetching Logic ---
   const fetchPollData = async (currentUserId: string) => {
-      const { data: myVote } = await supabase.from('poll_votes').select('tag').eq('user_id', currentUserId).eq('show_id', showId).single();
-      if (myVote) setUserVote(myVote.tag);
+      // 🔥 دریافت تمام رای‌های کاربر برای این سریال (برای چند انتخابی)
+      const { data: myVotes } = await supabase.from('poll_votes').select('tag').eq('user_id', currentUserId).eq('show_id', showId);
+      if (myVotes) {
+          setUserVotes(myVotes.map((v: any) => v.tag));
+      }
 
       const { data: allVotes } = await supabase.from('poll_votes').select('tag').eq('show_id', showId);
       if (allVotes) {
@@ -141,23 +144,29 @@ export default function ShowDetailsPage() {
 
   const handlePollVote = async (tag: string) => {
       if (!user) return;
-      const previousVote = userVote;
-      const isDeselecting = previousVote === tag;
-      const newVote = isDeselecting ? null : tag;
       
-      setUserVote(newVote);
-      setPollStats((prev: any) => {
-          const next = { ...prev };
-          if (previousVote) next[previousVote] = Math.max(0, (next[previousVote] || 1) - 1);
-          if (!isDeselecting) next[tag] = (next[tag] || 0) + 1;
-          return next;
-      });
-      setTotalVotes(prev => isDeselecting ? prev - 1 : (previousVote ? prev : prev + 1));
+      const isSelected = userVotes.includes(tag);
+      let newVotes;
 
-      if (isDeselecting) {
-          await supabase.from('poll_votes').delete().eq('user_id', user.id).eq('show_id', showId);
+      // 🔥 آپدیت لوکال (Optimistic UI)
+      if (isSelected) {
+          // حذف رای
+          newVotes = userVotes.filter(t => t !== tag);
+          setPollStats((prev: any) => ({ ...prev, [tag]: Math.max(0, (prev[tag] || 1) - 1) }));
+          setTotalVotes(prev => Math.max(0, prev - 1));
       } else {
-          await supabase.from('poll_votes').upsert({ user_id: user.id, show_id: showId, tag });
+          // اضافه کردن رای
+          newVotes = [...userVotes, tag];
+          setPollStats((prev: any) => ({ ...prev, [tag]: (prev[tag] || 0) + 1 }));
+          setTotalVotes(prev => prev + 1);
+      }
+      setUserVotes(newVotes);
+
+      // 🔥 آپدیت دیتابیس
+      if (isSelected) {
+          await supabase.from('poll_votes').delete().eq('user_id', user.id).eq('show_id', showId).eq('tag', tag);
+      } else {
+          await supabase.from('poll_votes').insert({ user_id: user.id, show_id: showId, tag });
       }
   };
 
@@ -548,7 +557,7 @@ export default function ShowDetailsPage() {
 
       <div className="max-w-7xl mx-auto px-6 mt-8 pb-20">
           
-          {/* ================= TAB 1: ABOUT (RESTORED FULLY) ================= */}
+          {/* ================= TAB 1: ABOUT ================= */}
           {activeTab === 'about' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4">
                   <div className="lg:col-span-2 space-y-8">
@@ -560,14 +569,13 @@ export default function ShowDetailsPage() {
                            </p>
                       </div>
 
-                      {/* 🔥🔥 FIX: RATING LTR FIX 🔥🔥 */}
                       <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
                           <h3 className="font-bold text-gray-200 mb-4 flex items-center gap-2"><Star className="text-[#ccff00]" size={18} /> امتیازدهی</h3>
                           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                               {/* 1. Your Rating */}
                               <div className="flex-1">
                                   <p className="text-xs text-gray-400 mb-2 font-bold">امتیاز شما:</p>
-                                  <div className="flex items-center gap-4" dir="ltr"> {/* LTR Force */}
+                                  <div className="flex items-center gap-4" dir="ltr"> 
                                       <div className="flex gap-1">
                                           {[1, 2, 3, 4, 5].map((star) => (
                                               <Star 
@@ -587,7 +595,7 @@ export default function ShowDetailsPage() {
                               {/* 2. User Rating */}
                               <div className="flex-1">
                                   <p className="text-xs text-gray-400 mb-2 font-bold flex items-center gap-2">امتیاز کاربران بینجر <Users size={14} /></p>
-                                  <div className="flex items-center gap-4" dir="ltr"> {/* LTR Force */}
+                                  <div className="flex items-center gap-4" dir="ltr"> 
                                       <div className="flex items-end gap-1">
                                           <span className="text-3xl font-black text-white">{bingerStats.avg > 0 ? bingerStats.avg.toFixed(1) : '-'}</span>
                                           <span className="text-sm text-gray-500 mb-1">/ 5</span>
@@ -600,29 +608,38 @@ export default function ShowDetailsPage() {
                           </div>
                       </div>
 
+                      {/* 🔥🔥 REFACTORED POLL: MULTI-SELECT 🔥🔥 */}
                       <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
                           <h3 className="font-bold text-gray-200 mb-4 flex items-center gap-2"><BarChart2 className="text-[#ccff00]" size={18} /> چه چیزی از این سریال تورو به وجد آورد؟</h3>
+                          <p className="text-xs text-gray-500 mb-4">(چند گزینه انتخاب کنید)</p>
                           <div className="space-y-3">
                               {['بازیگران', 'داستان', 'فیلمبرداری', 'موسیقی', 'پایان‌بندی'].map(tag => {
                                   const count = pollStats[tag] || 0;
                                   const percent = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
-                                  const isSelected = userVote === tag;
+                                  const isSelected = userVotes.includes(tag); // Check array
                                   return (
                                       <div 
                                         key={tag} 
                                         onClick={() => handlePollVote(tag)}
-                                        className={`relative h-12 rounded-xl overflow-hidden cursor-pointer border transition-all active:scale-98 ${isSelected ? 'border-[#ccff00]' : 'border-white/10 hover:border-white/30'}`}
+                                        className={`relative h-12 rounded-xl overflow-hidden cursor-pointer border transition-all active:scale-98 ${isSelected ? 'border-[#ccff00] bg-[#ccff00]/5' : 'border-white/10 hover:border-white/30'}`}
                                       >
-                                          <div className={`absolute top-0 right-0 h-full transition-all duration-700 ease-out ${isSelected ? 'bg-[#ccff00]/20' : 'bg-white/5'}`} style={{ width: `${percent}%` }}></div>
+                                          {/* Progress Bar Background */}
+                                          <div className={`absolute top-0 right-0 h-full transition-all duration-700 ease-out bg-white/5`} style={{ width: `${percent}%` }}></div>
+                                          
                                           <div className="absolute inset-0 flex items-center justify-between px-4 z-10">
-                                              <span className={`font-bold text-sm ${isSelected ? 'text-[#ccff00]' : 'text-gray-300'}`}>{tag}</span>
+                                              <div className="flex items-center gap-3">
+                                                  {/* Checkbox Icon */}
+                                                  <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${isSelected ? 'bg-[#ccff00] border-[#ccff00]' : 'border-gray-500'}`}>
+                                                      {isSelected && <Check size={12} className="text-black" strokeWidth={3} />}
+                                                  </div>
+                                                  <span className={`font-bold text-sm ${isSelected ? 'text-[#ccff00]' : 'text-gray-300'}`}>{tag}</span>
+                                              </div>
                                               <span className={`font-bold text-xs ${isSelected ? 'text-[#ccff00]' : 'text-gray-500'}`}>{count > 0 ? `${percent}%` : ''}</span>
                                           </div>
                                       </div>
                                   )
                               })}
                           </div>
-                          <p className="text-[10px] text-gray-500 mt-2 text-center">برای تغییر رای، مجدد کلیک کنید.</p>
                       </div>
 
                       <div className="bg-white/5 border border-white/10 rounded-3xl p-6">

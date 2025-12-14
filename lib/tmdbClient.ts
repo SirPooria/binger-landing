@@ -212,3 +212,39 @@ export const getNewestIranianShows = async () => {
     return [];
   }
 };
+// اضافه کردن به lib/tmdbClient.ts
+
+export const getShowReviews = async (id: string) => {
+  try {
+    const res = await fetch(`${BASE_URL}/tv/${id}/reviews?api_key=${API_KEY}&language=en-US&page=1`);
+    const data = await res.json();
+    return data.results || [];
+  } catch (error) {
+    console.error("Error fetching reviews:", error);
+    return [];
+  }
+};
+// --- اضافه کردن به انتهای فایل lib/tmdbClient.ts ---
+
+// تابع اختصاصی برای هوش مصنوعی (پیشنهاد بر اساس ژانر)
+export const getShowsByGenre = async (genreId: number | null) => {
+  try {
+    // اگر ژانر داشتیم، دیسکاور کن. اگر نه، ترندها رو بده (حالت Fallback)
+    const url = genreId 
+      ? `${BASE_URL}/discover/tv?api_key=${API_KEY}&with_genres=${genreId}&sort_by=popularity.desc&page=1&include_null_first_air_dates=false`
+      : `${BASE_URL}/trending/tv/week?api_key=${API_KEY}`;
+
+    const res = await fetch(url);
+    
+    if (!res.ok) {
+      console.error(`TMDB Error: ${res.status}`);
+      return [];
+    }
+
+    const data = await res.json();
+    return data.results || [];
+  } catch (error) {
+    console.error("AI Fetch Error:", error);
+    return [];
+  }
+};
