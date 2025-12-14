@@ -23,10 +23,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   return (
-    // کانتینر اصلی: تمام صفحه، بدون اسکرول کلی
     <div dir="rtl" className="flex h-screen w-full bg-[#050505] text-white font-['Vazirmatn'] overflow-hidden">
       
-      {/* 1. SIDEBAR (ثابت سمت راست) */}
+      {/* 1. SIDEBAR (DESKTOP) */}
       <aside className="hidden md:flex w-64 min-w-[16rem] bg-black/40 border-l border-white/5 flex-col py-6 overflow-y-auto shrink-0 z-50">
         <div className="px-6 mb-8 flex items-center gap-3 cursor-pointer" onClick={() => router.push('/dashboard')}>
            <div className="w-10 h-10 bg-[#ccff00] rounded-xl flex items-center justify-center text-black font-black text-xl shadow-[0_0_15px_rgba(204,255,0,0.4)]">B</div>
@@ -48,54 +47,53 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      {/* 2. MAIN WRAPPER (سمت چپ - شامل هدر و محتوا) */}
+      {/* 2. MAIN WRAPPER */}
       <div className="flex-1 flex flex-col h-full min-w-0 bg-[#050505] relative">
         
-        {/* 🔥 HEADER (ثابت بالا) */}
+        {/* 🔥 HEADER (FIXED & CENTERED ICON) */}
         <header className="h-16 md:h-20 shrink-0 w-full px-4 md:px-8 flex items-center justify-between z-40 bg-gradient-to-b from-[#050505] via-[#050505]/95 to-transparent backdrop-blur-sm border-b border-white/5 md:border-none">
             
-            {/* Logo (موبایل) */}
+            {/* Logo (Mobile) */}
             <div className="md:hidden flex items-center gap-2" onClick={() => router.push('/dashboard')}>
                 <div className="w-8 h-8 bg-[#ccff00] rounded-lg flex items-center justify-center text-black font-black">B</div>
             </div>
 
-            {/* 🔍 SEARCH BAR (اصلاح شده) */}
-            <div className={`relative flex items-center h-10 md:h-12 transition-all duration-500 ease-out bg-[#151515] border border-white/10 rounded-full overflow-hidden ${isSearchOpen ? 'w-full md:w-96 shadow-[0_0_15px_rgba(204,255,0,0.15)] border-[#ccff00]/50' : 'w-10 md:w-12 justify-center cursor-pointer hover:bg-white/10'} mr-auto`}>
+            {/* 🔍 SEARCH BAR - PERFECTLY CENTERED ICON */}
+            <div className={`relative flex items-center h-10 md:h-12 transition-all duration-500 ease-out bg-[#151515] border border-white/10 rounded-full overflow-hidden ${isSearchOpen ? 'w-full md:w-96 shadow-[0_0_15px_rgba(204,255,0,0.15)] border-[#ccff00]/50' : 'w-10 md:w-12 cursor-pointer hover:bg-white/10'} mr-auto`}>
                 
-                {/* آیکون ذره‌بین */}
+                {/* 🎯 FIX: آیکون در یک کانتینر با عرض ثابت و فلکس مرکزی قرار گرفت */}
                 <div 
-                    className="h-full aspect-square flex items-center justify-center cursor-pointer z-10"
+                    className="absolute right-0 top-0 h-full w-10 md:w-12 flex items-center justify-center z-10"
                     onClick={() => !isSearchOpen && setIsSearchOpen(true)}
                 >
                     <Search className={`transition-colors duration-300 ${isSearchOpen ? 'text-[#ccff00]' : 'text-gray-400'}`} size={20} />
                 </div>
 
-                {/* اینپوت (فقط وقتی باز است دیده شود) */}
                 <input 
                     type="text" 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={handleSearchSubmit}
                     placeholder="جستجو فیلم، سریال..." 
-                    className={`bg-transparent border-none outline-none text-white text-sm h-full w-full px-2 transition-all duration-300 ${isSearchOpen ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10 w-0'}`}
+                    // پدینگ سمت راست رو اندازه عرض آیکون میدیم تا متن زیر آیکون نره
+                    className={`bg-transparent border-none outline-none text-white text-sm h-full w-full pl-3 pr-10 md:pr-12 transition-all duration-300 ${isSearchOpen ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10 w-0'}`}
                     autoFocus={isSearchOpen}
                 />
 
-                {/* دکمه بستن */}
                 {isSearchOpen && (
-                    <button onClick={() => { setIsSearchOpen(false); setSearchQuery(""); }} className="h-full px-3 text-gray-500 hover:text-red-400 transition-colors">
+                    <button onClick={() => { setIsSearchOpen(false); setSearchQuery(""); }} className="absolute left-0 top-0 h-full px-3 flex items-center justify-center text-gray-500 hover:text-red-400 transition-colors z-20">
                         <X size={16} />
                     </button>
                 )}
             </div>
         </header>
 
-        {/* 3. SCROLLABLE CONTENT (فقط این بخش اسکرول میخورد) */}
+        {/* 3. CONTENT */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar pb-24 md:pb-10 relative w-full">
             {children}
         </main>
 
-        {/* BOTTOM NAV (موبایل) */}
+        {/* BOTTOM NAV (MOBILE) */}
         <div className="md:hidden fixed bottom-0 w-full bg-[#0a0a0a]/90 backdrop-blur-xl border-t border-white/10 flex justify-around p-4 z-50 safe-area-pb">
             <Home size={24} className={pathname === '/dashboard' ? "text-[#ccff00]" : "text-gray-500"} onClick={() => router.push('/dashboard')} />
             <CalIcon size={24} className={pathname === '/dashboard/calendar' ? "text-[#ccff00]" : "text-gray-500"} onClick={() => router.push('/dashboard/calendar')} />
@@ -117,4 +115,4 @@ function MenuItem({ icon, label, active = false, onClick }: any) {
             {active && <div className="mr-auto w-1.5 h-1.5 rounded-full bg-black"></div>}
         </div>
     );
-} 
+}
