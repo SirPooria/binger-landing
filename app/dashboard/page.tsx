@@ -5,15 +5,15 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { 
   getTrendingShows, searchShows, getImageUrl, getBackdropUrl, 
-  getLatestAnime, getAsianDramas, getNewestGlobal, getShowDetails, 
-  getIranianShows, getNewestIranianShows 
+  getShowDetails, getIranianShows, getNewestIranianShows,
+  getLatestAnime, getAsianDramas, getNewestGlobal, getRecommendations
 } from '@/lib/tmdbClient'; 
 import { 
   Loader2, Star, Plus, Info, AlertTriangle, Check, Bookmark, 
-  Globe, Activity, ChevronLeft, ChevronRight 
+  Globe, Activity, ChevronLeft, ChevronRight, Twitter, Instagram, Github, Heart, Sparkles 
 } from 'lucide-react';
 
-// --- WRAPPER COMPONENT (FIX FOR VERCEL ERROR) ---
+// --- WRAPPER FOR VERCEL ---
 export default function Dashboard() {
   return (
     <Suspense fallback={<div className="h-screen bg-[#050505] flex items-center justify-center text-[#ccff00]"><Loader2 className="animate-spin" size={48} /></div>}>
@@ -27,27 +27,29 @@ function DashboardContent() {
   const searchParams = useSearchParams();
   const queryFromUrl = searchParams.get('q'); 
 
-  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
-  // Search
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  
-  // Data
   const [watchlistIds, setWatchlistIds] = useState<Set<number>>(new Set());
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  
   const [heroShows, setHeroShows] = useState<any[]>([]); 
   const [myFeed, setMyFeed] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'discovery' | 'my_radar'>('discovery');
-  
+  const [user, setUser] = useState<any>(null);
+  const [radarLoading, setRadarLoading] = useState(false);
+
+  // 🔥 AI RECOMMENDATION STATE
+  const [aiRecs, setAiRecs] = useState<any[]>([]);
+  const [aiSourceShow, setAiSourceShow] = useState<string | null>(null); // نام سریالی که مبنای پیشنهاد بوده
+
   const [categories, setCategories] = useState({
       newIranian: [] as any[], 
       popularIranian: [] as any[], 
       trending: [] as any[],
       topBinger: [] as any[], 
-      mostDiscussed: [] as any[], 
       newGlobal: [] as any[],
       asian: [] as any[],
       anime: [] as any[]
@@ -77,7 +79,41 @@ function DashboardContent() {
         setUser(user);
 
         const { data: wList } = await supabase.from('watchlist').select('show_id').eq('user_id', user.id);
-        setWatchlistIds(new Set(wList?.map((i:any) => i.show_id)));
+        const { data: watched } = await supabase.from('watched').select('show_id').eq('user_id', user.id);
+
+        const wIds = wList?.map((i: any) => i.show_id) || [];
+        const wEdIds = watched?.map((i: any) => i.show_id) || [];
+        const allUserShowIds = Array.from(new Set([...wIds, ...wEdIds]));
+        
+        setWatchlistIds(new Set(wIds));
+
+        // 1. Radar Logic
+        if (allUserShowIds.length > 0) {
+            setRadarLoading(true);
+            const recentIds = allUserShowIds.reverse().slice(0, 30); 
+            const myShowsPromises = recentIds.map(id => getShowDetails(id).catch(() => null));
+            const myShowsRaw = await Promise.all(myShowsPromises);
+            const myShowsValid = myShowsRaw.filter(s => s !== null);
+            setMyFeed(myShowsValid);
+            setRadarLoading(false);
+
+            // 🔥 2. AI RECOMMENDATION LOGIC
+            // انتخاب تصادفی یکی از سریال‌های کاربر برای پیشنهاد مشابه
+            if (allUserShowIds.length > 0) {
+                const randomSeedId = allUserShowIds[Math.floor(Math.random() * allUserShowIds.length)];
+                
+                // گرفتن اسم سریال مبنا + پیشنهاداتش
+                const [seedDetails, recs] = await Promise.all([
+                    getShowDetails(randomSeedId),
+                    getRecommendations(randomSeedId)
+                ]);
+
+                if (recs && recs.length > 0) {
+                    setAiRecs(recs);
+                    setAiSourceShow(seedDetails?.name || "سلیقه شما");
+                }
+            }
+        }
 
         const fetchSafely = async (fn: () => Promise<any>, fallback: any[]) => {
             try { return await fn(); } catch (e) { return fallback; }
@@ -115,14 +151,8 @@ function DashboardContent() {
             newGlobal: newGlobalData || [],
             anime: animeData || [],
             asian: asianData || [],
-            mostDiscussed: [], 
             topBinger: topBingerShows.filter(s => s)
         });
-
-        const allFetchedShows = [...(newGlobalData || []), ...(trendDataRaw || []), ...(animeData || []), ...(newIranianData || [])];
-        const myShowIds = new Set(wList?.map((i:any) => i.show_id));
-        const personalFeed = allFetchedShows.filter((show: any, index, self) => index === self.findIndex((t) => t.id === show.id) && myShowIds.has(show.id));
-        setMyFeed(personalFeed);
         
       } catch (err: any) {
           console.error(err);
@@ -146,8 +176,10 @@ function DashboardContent() {
       setToastMsg(isAdded ? "حذف شد 🗑️" : "اضافه شد ✅");
       setTimeout(() => setToastMsg(null), 3000);
       
-      if (isAdded) await supabase.from('watchlist').delete().eq('user_id', user.id).eq('show_id', showId);
-      else await supabase.from('watchlist').insert([{ user_id: user.id, show_id: showId }]);
+      if (user) {
+          if (isAdded) await supabase.from('watchlist').delete().eq('user_id', user.id).eq('show_id', showId);
+          else await supabase.from('watchlist').insert([{ user_id: user.id, show_id: showId }]);
+      }
   };
 
   if (loading) return <div className="h-full flex items-center justify-center text-[#ccff00] pt-20"><Loader2 className="animate-spin" size={48} /></div>;
@@ -174,7 +206,7 @@ function DashboardContent() {
   }
 
   return (
-    <div className="animate-in fade-in duration-500 relative w-full overflow-hidden">
+    <div className="animate-in fade-in duration-500 relative w-full overflow-hidden flex flex-col min-h-screen">
         
         {toastMsg && (
             <div className="fixed bottom-24 md:bottom-8 left-1/2 -translate-x-1/2 z-[200] bg-[#ccff00] text-black px-6 py-3 rounded-full font-bold shadow-2xl flex items-center gap-2">
@@ -186,21 +218,34 @@ function DashboardContent() {
         {heroShows.length > 0 && <HeroSlider shows={heroShows} router={router} watchlistIds={watchlistIds} onToggle={toggleWatchlist} />}
 
         {/* 2. TABS */}
-        <div className="flex justify-center mb-8 -mt-8 relative z-20">
+        <div className="flex justify-center mb-10 -mt-8 relative z-20">
             <div className="bg-black/60 backdrop-blur-xl border border-white/10 p-1.5 rounded-2xl flex shadow-2xl">
-                <button onClick={() => setActiveTab('discovery')} className={`px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'discovery' ? 'bg-[#ccff00] text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}>
-                    <Globe size={18} /> کشف
+                <button onClick={() => setActiveTab('discovery')} className={`px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${activeTab === 'discovery' ? 'bg-[#ccff00] text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}>
+                    <Globe size={18} /> اکسپلور گردی
                 </button>
-                <button onClick={() => setActiveTab('my_radar')} className={`px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'my_radar' ? 'bg-[#ccff00] text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}>
-                    <Activity size={18} /> رادارِ من
+                <button onClick={() => setActiveTab('my_radar')} className={`px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${activeTab === 'my_radar' ? 'bg-[#ccff00] text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}>
+                    <Activity size={18} /> رادار سریال های من 
                 </button>
             </div>
         </div>
 
         {/* 3. CONTENT AREA */}
-        <div className="relative z-10 px-4 md:px-8 pb-20 space-y-12">
+        <div className="relative z-10 px-4 md:px-8 pb-10 space-y-16 flex-1">
             {activeTab === 'discovery' ? (
                 <>
+                    {/* 🔥🔥 AI RECOMMENDATIONS (TOP PRIORITY) 🔥🔥 */}
+                    {aiRecs.length > 0 && (
+                        <div className="relative bg-gradient-to-r from-[#ccff00]/5 to-transparent border border-[#ccff00]/10 rounded-3xl p-6 md:p-8 animate-in slide-in-from-bottom-6">
+                            <div className="flex items-center gap-2 mb-6">
+                                <Sparkles size={24} className="text-[#ccff00] animate-pulse" />
+                                <h2 className="text-lg md:text-2xl font-black text-white">
+                                    چون <span className="text-[#ccff00] underline decoration-wavy underline-offset-4">{aiSourceShow}</span> رو دیدی:
+                                </h2>
+                            </div>
+                            <CarouselSection title="" items={aiRecs} watchlistIds={watchlistIds} router={router} onToggle={toggleWatchlist} />
+                        </div>
+                    )}
+
                     <CarouselSection title="🆕 تازه‌های نمایش خانگی ایران" items={categories.newIranian} watchlistIds={watchlistIds} router={router} onToggle={toggleWatchlist} />
                     <CarouselSection title="💎 پرطرفدارترین‌های ایرانی" items={categories.popularIranian} watchlistIds={watchlistIds} router={router} onToggle={toggleWatchlist} />
                     <CarouselSection title="🔥 پربازدیدترین‌های هفته (جهان)" items={categories.trending} watchlistIds={watchlistIds} router={router} onToggle={toggleWatchlist} />
@@ -210,19 +255,94 @@ function DashboardContent() {
                     <CarouselSection title="🐉 آسیای شرقی" items={categories.asian} watchlistIds={watchlistIds} router={router} onToggle={toggleWatchlist} />
                 </>
             ) : (
-                <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-white/10 rounded-3xl bg-white/5 mx-4">
-                    <h3 className="text-lg font-bold text-white mb-2">رادار شما خالیه!</h3>
-                    <p className="text-gray-400 text-sm">فعلاً سریالی در لیست شما نیست.</p>
-                </div>
+                // My Radar
+                <>
+                    {radarLoading ? (
+                        <div className="flex justify-center py-20"><Loader2 className="animate-spin text-[#ccff00]" size={32} /></div>
+                    ) : myFeed.length > 0 ? (
+                        <div className="animate-in fade-in slide-in-from-bottom-4">
+                            <div className="flex items-center gap-2 text-[#ccff00] mb-6 px-2">
+                                <Activity size={24} />
+                                <h2 className="text-xl font-black">سریال‌های شما (در حال تماشا و لیست)</h2>
+                            </div>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                                {myFeed.map((show) => (
+                                    <ShowCard key={show.id} show={show} isAdded={true} onToggle={() => toggleWatchlist(show.id)} onClick={() => router.push(`/dashboard/tv/${show.id}`)} />
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-white/10 rounded-3xl bg-white/5 mx-4">
+                            <h3 className="text-lg font-bold text-white mb-2">رادار شما خالیه!</h3>
+                            <p className="text-gray-400 text-sm">به نظر میاد هنوز سریالی رو به لیستت اضافه نکردی یا شروع نکردی.</p>
+                            <button onClick={() => setActiveTab('discovery')} className="mt-4 text-[#ccff00] text-sm border-b border-[#ccff00] pb-0.5 font-bold cursor-pointer">
+                                برو به اکسپلور و چند تا سریال پیدا کن
+                            </button>
+                        </div>
+                    )}
+                </>
             )}
         </div>
+
+        {/* 4. FOOTER */}
+        <DashboardFooter />
     </div>
   );
 }
 
-// --- COMPONENTS ---
-// فقط این تابع را در app/dashboard/page.tsx جایگزین کنید
+// --- FOOTER ---
+function DashboardFooter() {
+    return (
+        <footer className="mt-20 border-t border-white/5 bg-[#080808] relative z-10">
+            <div className="max-w-7xl mx-auto px-6 py-12">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+                    {/* Brand */}
+                    <div className="col-span-1 md:col-span-2 space-y-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-[#ccff00] rounded-lg flex items-center justify-center text-black font-black">B</div>
+                            <span className="text-xl font-black text-white">Binger</span>
+                        </div>
+                        <p className="text-gray-400 text-xs leading-relaxed max-w-sm text-justify">
+                            بینجر پلتفرم هوشمند مدیریت و کشف سریال است. با بینجر همیشه می‌دونی چی ببینی و تا کجا دیدی. هدف ما خلق بهترین تجربه برای عاشقان سینماست.
+                        </p>
+                    </div>
 
+                    {/* Quick Links */}
+                    <div>
+                        <h4 className="font-bold text-white mb-4">دسترسی سریع</h4>
+                        <ul className="space-y-2 text-sm text-gray-400">
+                            <li><a href="#" className="hover:text-[#ccff00] transition-colors cursor-pointer">تازه ترین ها</a></li>
+                            <li><a href="#" className="hover:text-[#ccff00] transition-colors cursor-pointer">برترین های IMDB</a></li>
+                            <li><a href="#" className="hover:text-[#ccff00] transition-colors cursor-pointer">انیمه</a></li>
+                            <li><a href="#" className="hover:text-[#ccff00] transition-colors cursor-pointer">سوالات متداول</a></li>
+                        </ul>
+                    </div>
+
+                    {/* Socials */}
+                    <div>
+                        <h4 className="font-bold text-white mb-4">ما را دنبال کنید</h4>
+                        <div className="flex gap-4">
+                            <a href="#" className="p-2 bg-white/5 rounded-full hover:bg-[#ccff00] hover:text-black transition-all cursor-pointer"><Twitter size={18} /></a>
+                            <a href="#" className="p-2 bg-white/5 rounded-full hover:bg-[#ccff00] hover:text-black transition-all cursor-pointer"><Instagram size={18} /></a>
+                            <a href="#" className="p-2 bg-white/5 rounded-full hover:bg-[#ccff00] hover:text-black transition-all cursor-pointer"><Github size={18} /></a>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="border-t border-white/5 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <p className="text-xs text-gray-500">
+                        © ۲۰۲۵ تمامی حقوق برای <span className="text-[#ccff00]">Binger</span> محفوظ است.
+                    </p>
+                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                        Made with <Heart size={12} className="text-red-500 fill-red-500 animate-pulse" /> for Movie Lovers
+                    </div>
+                </div>
+            </div>
+        </footer>
+    );
+}
+
+// 1. HERO SLIDER (FIXED ARROWS & RTL)
 function HeroSlider({ shows, router, watchlistIds, onToggle }: any) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [current, setCurrent] = useState(0);
@@ -238,25 +358,21 @@ function HeroSlider({ shows, router, watchlistIds, onToggle }: any) {
     const nextSlide = () => {
         if (scrollRef.current) {
             const width = scrollRef.current.clientWidth;
-            const next = current === shows.length - 1 ? 0 : current + 1;
-            scrollRef.current.scrollTo({ left: -(next * width), behavior: 'smooth' });
-            setCurrent(next);
+            scrollRef.current.scrollBy({ left: -width, behavior: 'smooth' }); 
         }
     };
 
     const prevSlide = () => {
         if (scrollRef.current) {
             const width = scrollRef.current.clientWidth;
-            const prev = current === 0 ? shows.length - 1 : current - 1;
-            scrollRef.current.scrollTo({ left: -(prev * width), behavior: 'smooth' });
-            setCurrent(prev);
+            scrollRef.current.scrollBy({ left: width, behavior: 'smooth' });
         }
     };
 
     if (shows.length === 0) return null;
 
     return (
-        <div className="relative w-full h-[60vh] md:h-[75vh] group mb-8">
+        <div className="relative w-full h-[65vh] md:h-[75vh] group mb-8">
             <div ref={scrollRef} onScroll={handleScroll} className="flex overflow-x-auto snap-x snap-mandatory h-full w-full no-scrollbar scroll-smooth" dir="ltr">
                 {shows.map((show: any, index: number) => {
                     const isAdded = watchlistIds.has(show.id);
@@ -265,7 +381,7 @@ function HeroSlider({ shows, router, watchlistIds, onToggle }: any) {
                     const isPersianOverview = /[\u0600-\u06FF]/.test(overviewText);
 
                     return (
-                        <div key={show.id} className="snap-center shrink-0 w-full h-full relative">
+                        <div key={show.id} className="snap-center shrink-0 w-full h-full relative cursor-default">
                             <img src={getBackdropUrl(show.backdrop_path)} className="w-full h-full object-cover opacity-60" />
                             <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/40 to-transparent"></div>
                             <div className="absolute inset-0 bg-gradient-to-r from-[#050505]/80 via-transparent to-transparent"></div>
@@ -296,11 +412,14 @@ function HeroSlider({ shows, router, watchlistIds, onToggle }: any) {
                 })}
             </div>
             
-            {/* 🔥 Navigation Arrows (Restored) */}
-            <button onClick={nextSlide} className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-white/10 text-white p-3 rounded-full backdrop-blur-md border border-white/10 transition-all opacity-0 group-hover:opacity-100 z-20 cursor-pointer hidden md:block active:scale-90"><ChevronRight size={28} /></button>
-            <button onClick={prevSlide} className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-white/10 text-white p-3 rounded-full backdrop-blur-md border border-white/10 transition-all opacity-0 group-hover:opacity-100 z-20 cursor-pointer hidden md:block active:scale-90"><ChevronLeft size={28} /></button>
+            <button onClick={nextSlide} className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-md border border-white/10 transition-all opacity-0 group-hover:opacity-100 z-20 cursor-pointer hidden md:flex items-center justify-center active:scale-90 hover:scale-110">
+                <ChevronLeft size={32} />
+            </button>
+            
+            <button onClick={prevSlide} className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-md border border-white/10 transition-all opacity-0 group-hover:opacity-100 z-20 cursor-pointer hidden md:flex items-center justify-center active:scale-90 hover:scale-110">
+                <ChevronRight size={32} />
+            </button>
 
-            {/* Dots */}
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-1.5 z-20 bg-black/20 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/5">
                 {shows.map((_: any, idx: number) => (
                     <div key={idx} onClick={() => { if(scrollRef.current) { const w = scrollRef.current.clientWidth; scrollRef.current.scrollTo({left: -(idx * w), behavior: 'smooth'}); setCurrent(idx); }}} className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${idx === current ? 'w-6 bg-[#ccff00]' : 'w-1.5 bg-white/50'}`}></div>
@@ -310,17 +429,46 @@ function HeroSlider({ shows, router, watchlistIds, onToggle }: any) {
     );
 }
 
+// 2. CAROUSEL SECTION (WITH HOVER ARROWS & CURSOR POINTER)
 function CarouselSection({ title, items, router, watchlistIds, onToggle }: any) {
+    const rowRef = useRef<HTMLDivElement>(null);
+
     if (!items || items.length === 0) return null;
+
+    const scroll = (direction: 'left' | 'right') => {
+        if (rowRef.current) {
+            const { clientWidth } = rowRef.current;
+            const scrollAmount = direction === 'left' ? -(clientWidth / 2) : (clientWidth / 2);
+            rowRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+        }
+    };
+
     return (
-        <div className="space-y-4">
-            <h2 className="text-lg md:text-xl font-black flex items-center gap-2 text-white/90 px-2 border-r-4 border-[#ccff00] mr-2">{title}</h2>
-            <div className="flex gap-4 overflow-x-auto pb-6 px-2 no-scrollbar snap-x scroll-smooth">
-                {items.map((show: any) => (
-                    <div key={show.id} className="snap-center shrink-0 w-[130px] md:w-[160px]">
-                        <ShowCard show={show} isAdded={watchlistIds.has(show.id)} onClick={() => router.push(`/dashboard/tv/${show.id}`)} onToggle={() => onToggle(show.id)} />
-                    </div>
-                ))}
+        <div className="space-y-4 group/section relative">
+            {title && <h2 className="text-lg md:text-xl font-black flex items-center gap-2 text-white/90 px-2 border-r-4 border-[#ccff00] mr-2 cursor-default">{title}</h2>}
+            
+            <div className="relative">
+                <button 
+                    onClick={() => scroll('left')}
+                    className="absolute left-0 top-0 bottom-6 w-12 bg-gradient-to-r from-black/80 to-transparent z-10 flex items-center justify-center opacity-0 group-hover/section:opacity-100 transition-opacity duration-300 cursor-pointer md:flex hidden"
+                >
+                    <ChevronLeft className="text-white hover:text-[#ccff00] drop-shadow-lg" size={32} />
+                </button>
+
+                <div ref={rowRef} className="flex gap-4 overflow-x-auto pb-6 px-2 no-scrollbar snap-x scroll-smooth">
+                    {items.map((show: any) => (
+                        <div key={show.id} className="snap-center shrink-0 w-[130px] md:w-[160px] cursor-pointer">
+                            <ShowCard show={show} isAdded={watchlistIds.has(show.id)} onClick={() => router.push(`/dashboard/tv/${show.id}`)} onToggle={() => onToggle(show.id)} />
+                        </div>
+                    ))}
+                </div>
+
+                <button 
+                    onClick={() => scroll('right')}
+                    className="absolute right-0 top-0 bottom-6 w-12 bg-gradient-to-l from-black/80 to-transparent z-10 flex items-center justify-center opacity-0 group-hover/section:opacity-100 transition-opacity duration-300 cursor-pointer md:flex hidden"
+                >
+                    <ChevronRight className="text-white hover:text-[#ccff00] drop-shadow-lg" size={32} />
+                </button>
             </div>
         </div>
     );
@@ -331,7 +479,7 @@ function ShowCard({ show, isAdded, onClick, onToggle }: any) {
         <div onClick={onClick} className="group relative aspect-[2/3] bg-[#1a1a1a] rounded-xl overflow-hidden cursor-pointer border border-white/5 hover:border-[#ccff00] transition-all duration-300 hover:scale-105 hover:shadow-xl">
             <img src={getImageUrl(show.poster_path)} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-60"></div>
-            <button onClick={(e) => { e.stopPropagation(); onToggle(); }} className={`absolute top-2 left-2 p-1.5 rounded-full backdrop-blur-md transition-all z-10 ${isAdded ? 'bg-[#ccff00] text-black' : 'bg-black/40 text-white hover:bg-white hover:text-black'}`}>
+            <button onClick={(e) => { e.stopPropagation(); onToggle(); }} className={`absolute top-2 left-2 p-1.5 rounded-full backdrop-blur-md transition-all z-10 cursor-pointer ${isAdded ? 'bg-[#ccff00] text-black' : 'bg-black/40 text-white hover:bg-white hover:text-black'}`}>
                 {isAdded ? <Bookmark size={14} fill="black" /> : <Plus size={14} />}
             </button>
             <div className="absolute bottom-0 p-3 w-full">

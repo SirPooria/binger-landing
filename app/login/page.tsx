@@ -38,7 +38,7 @@ export default function LoginPage() {
         } else {
           setMessage('ثبت‌نام انجام شد! در حال ورود...');
           // بعد از ثبت نام موفق، هدایت به دشبورد
-           router.push('/dashboard');
+           router.push('/onboarding');
         }
       } else {
         // اگر ورود موفق بود

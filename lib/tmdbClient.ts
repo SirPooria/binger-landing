@@ -248,3 +248,22 @@ export const getShowsByGenre = async (genreId: number | null) => {
     return [];
   }
 };
+// --- اضافه کردن به lib/tmdbClient.ts ---
+
+// دریافت پیشنهادهای مشابه بر اساس یک سریال خاص
+export const getRecommendations = async (showId: number) => {
+  try {
+    const res = await fetch(`${BASE_URL}/tv/${showId}/recommendations?api_key=${API_KEY}&language=fa-IR&page=1`);
+    const data = await res.json();
+    // اگر دیتای فارسی کم بود، انگلیسی بگیر (فال‌بک)
+    if (!data.results || data.results.length < 5) {
+        const resEn = await fetch(`${BASE_URL}/tv/${showId}/recommendations?api_key=${API_KEY}&language=en-US&page=1`);
+        const dataEn = await resEn.json();
+        return dataEn.results || [];
+    }
+    return data.results || [];
+  } catch (error) {
+    console.error("Error fetching recommendations:", error);
+    return [];
+  }
+};

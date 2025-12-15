@@ -101,9 +101,9 @@ export default function OnboardingPage() {
                  </Link>
                  
                  <div className="flex items-center justify-center gap-4 text-[10px] text-gray-500 font-bold uppercase tracking-widest">
-                    <span>Free Forever</span>
+                    <span>همیشه رایگان</span>
                     <span className="w-1 h-1 bg-gray-600 rounded-full"></span>
-                    <span>No Ads</span>
+                    <span>بدون تبلیغات</span>
                  </div>
                </div>
             )}
