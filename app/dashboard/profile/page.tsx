@@ -2,14 +2,12 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-// ✅ فیکس ارور: اضافه شدن getImageUrl
 import { getShowDetails, getBackdropUrl, getImageUrl } from '@/lib/tmdbClient';
 import { useRouter } from 'next/navigation';
-// ✅ فیکس ارور: اضافه شدن Plus
 import { 
-  Loader2, ArrowRight, Zap, Settings, Users, MessageSquare, Heart, 
+  Loader2, Zap, Settings, MessageSquare, Heart, 
   Plus, Award, X, Clock, Play, User as UserIcon, Calendar, 
-  Lock, CheckCircle, LogOut, Share2, Trophy, Globe, Twitter, Instagram, Github
+  Lock, CheckCircle, LogOut, Share2, Trophy, Globe, Users, Instagram, Twitter, Github
 } from 'lucide-react';
 
 // --- مدال‌ها ---
@@ -54,7 +52,6 @@ export default function ProfilePage() {
       setUser(user);
 
       // 1. Data Fetching (Watched)
-      // ✅ فیکس باگ: اضافه کردن فیلتر یوزر آیدی برای اطمینان
       const { data: watchedData } = await supabase.from('watched').select('show_id, created_at').eq('user_id', user.id);
       
       if (watchedData && watchedData.length > 0) {
@@ -94,11 +91,7 @@ export default function ProfilePage() {
             const d = showsDetailsMap[id];
             if (!d) return null;
 
-            // ✅ فیکس باگ درصد: محاسبه دقیق‌تر
-            // تعداد کل اپیزودها رو از دیتای اصلی میگیریم (مثل صفحه سریال)
-            // اگر season_count رو دستی جمع بزنیم ممکنه با number_of_episodes فرق کنه و درصد خراب شه
             const totalEps = d.number_of_episodes || 1; 
-
             const watchedCount = watchedData.filter((w: any) => w.show_id === id).length;
             const progress = Math.min(100, Math.round((watchedCount / totalEps) * 100));
             
@@ -152,6 +145,7 @@ export default function ProfilePage() {
           }
       } else if (type === 'leaderboard') {
           if (leaderboardTab === 'global') {
+              // Mock Data + Current User
               const globalMock = [
                   { id: '1', title: 'KingBinger', score: 1250, isMe: false },
                   { id: '2', title: 'Sara_Movie', score: 980, isMe: false },
@@ -245,6 +239,7 @@ export default function ProfilePage() {
                 
                 <h1 className="text-2xl md:text-3xl font-black mt-3 ltr tracking-tight text-white">{user?.email?.split('@')[0]}</h1>
                 
+                {/* دکمه‌های مدیریتی */}
                 <div className="flex items-center gap-2 mt-3">
                     <button onClick={handleShareProfile} className="w-9 h-9 bg-[#ccff00] text-black rounded-full flex items-center justify-center hover:scale-110 transition-transform shadow-[0_0_15px_rgba(204,255,0,0.4)] cursor-pointer">
                         <Share2 size={18} />
@@ -272,6 +267,7 @@ export default function ProfilePage() {
         {/* --- CONTENT --- */}
         <div className="max-w-5xl mx-auto px-4 mt-16 space-y-10 mb-20">
             
+            {/* STATS GRID */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-2 bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 rounded-3xl p-6 relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><Clock size={100} /></div>
@@ -306,6 +302,7 @@ export default function ProfilePage() {
                 </div>
             </div>
 
+            {/* FAVORITES */}
             <div>
                 <div className="flex justify-between items-end mb-6">
                     <h2 className="text-xl font-black flex items-center gap-2"><Heart className="text-red-500 fill-red-500" size={20} /> محبوب‌ترین‌های من</h2>
@@ -325,6 +322,7 @@ export default function ProfilePage() {
                 )}
             </div>
 
+            {/* RECENT ACTIVITY */}
             <div className="pb-10">
                 <h2 className="text-xl font-bold mb-6 flex items-center gap-2"><Calendar size={20} className="text-cyan-400" /> سریال‌های مشاهده شده</h2>
                 {recentShows.length > 0 ? (
@@ -347,12 +345,12 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <DashboardFooter />
-
+      {/* --- ALL MODALS (INCLUDING LEADERBOARD) --- */}
       {activeModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-xl p-4 animate-in fade-in duration-300" onClick={() => setActiveModal(null)}>
             <div className={`bg-[#0f0f0f] border border-white/10 w-full max-w-2xl rounded-[2rem] overflow-hidden flex flex-col shadow-2xl ${activeModal === 'leaderboard' ? 'h-[80vh]' : 'max-h-[80vh]'}`} onClick={e => e.stopPropagation()}>
                 
+                {/* Header */}
                 <div className="p-6 border-b border-white/5 flex justify-between items-center bg-[#141414]">
                     <h3 className="font-black text-xl text-white flex items-center gap-2">
                         {activeModal === 'followers' && 'دنبال‌کنندگان شما'}
@@ -363,6 +361,7 @@ export default function ProfilePage() {
                     <button onClick={() => setActiveModal(null)} className="bg-white/5 p-2 rounded-full hover:bg-white/10 hover:text-red-400 transition-all"><X size={20} /></button>
                 </div>
                 
+                {/* LEADERBOARD TABS */}
                 {activeModal === 'leaderboard' && (
                     <div className="flex p-2 bg-black/40 border-b border-white/5">
                         <button onClick={() => setLeaderboardTab('global')} className={`flex-1 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${leaderboardTab === 'global' ? 'bg-white/10 text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}>
@@ -374,13 +373,19 @@ export default function ProfilePage() {
                     </div>
                 )}
 
+                {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-2">
                     {modalLoading ? (
                         <div className="flex justify-center py-20"><Loader2 className="animate-spin text-[#ccff00]" size={32} /></div>
                     ) : modalList.length > 0 ? (
                         modalList.map((item, idx) => (
-                            <div key={idx} className={`p-4 rounded-2xl flex items-center gap-4 border transition-colors cursor-default ${item.isMe ? 'bg-[#ccff00]/10 border-[#ccff00]/50' : 'bg-white/[0.03] hover:bg-white/[0.06] border-white/5'}`}>
-                                
+                            <div 
+                                key={idx} 
+                                onClick={() => {
+                                    if (!item.isMe) router.push(`/dashboard/user/${item.id}`);
+                                }}
+                                className={`p-4 rounded-2xl flex items-center gap-4 border transition-colors ${item.isMe ? 'bg-[#ccff00]/10 border-[#ccff00]/50 cursor-default' : 'bg-white/[0.03] hover:bg-white/[0.06] border-white/5 cursor-pointer hover:border-white/20'}`}
+                            >
                                 {activeModal === 'leaderboard' ? (
                                     <>
                                         <div className={`w-10 h-10 flex items-center justify-center font-black text-lg rounded-full ${idx === 0 ? 'bg-yellow-400 text-black' : idx === 1 ? 'bg-gray-300 text-black' : idx === 2 ? 'bg-orange-700 text-white' : 'bg-white/5 text-gray-500'}`}>
@@ -432,6 +437,7 @@ function SocialItem({ count, label, onClick }: any) {
     return (<button onClick={onClick} className="flex flex-col items-center justify-center w-20 py-2 hover:bg-white/5 rounded-xl transition-all cursor-pointer group"><span className="text-lg font-black text-white group-hover:text-[#ccff00] transition-colors">{count}</span><span className="text-[10px] uppercase font-bold text-gray-500 tracking-wide">{label}</span></button>);
 }
 
+// --- FOOTER COMPONENT ---
 function DashboardFooter() {
     return (
         <footer className="mt-20 border-t border-white/5 bg-[#080808] relative z-10">
