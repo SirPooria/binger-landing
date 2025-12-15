@@ -79,7 +79,7 @@ export default function CategoryPage() {
   }, [categoryId]);
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white p-4 md:p-8 animate-in fade-in duration-500">
+    <div className="min-h-screen bg-[#050505] text-white p-4 md:p-8 pt-24 md:pt-32 animate-in fade-in duration-500">
       
       {/* --- HEADER --- */}
       <div className="flex items-center gap-4 mb-8 border-b border-white/10 pb-6">

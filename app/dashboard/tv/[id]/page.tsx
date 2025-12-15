@@ -8,6 +8,7 @@ import { ArrowRight, Star, Loader2, Check, Plus, Share2, Play, Info, RotateCcw, 
 import EpisodeModal from '../../components/EpisodeModal';
 import confetti from 'canvas-confetti'; 
 
+
 // --- SKELETON LOADER ---
 // --- SKELETON LOADER (MATCHING LAYOUT) ---
 const SkeletonPage = () => (
@@ -77,7 +78,11 @@ export default function ShowDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const showId = params.id as string;
-
+    const isPersianText = (text: string) => {
+        if (!text) return true;
+        // چک میکنه آیا حروف فارسی توش هست یا نه
+        return /[\u0600-\u06FF]/.test(text);
+    };
   // --- Data States ---
   const [user, setUser] = useState<any>(null);
   const [show, setShow] = useState<any>(null);
@@ -134,6 +139,15 @@ export default function ShowDetailsPage() {
   const isReleased = (dateString: string) => {
     if (!dateString) return false;
     return new Date(dateString) <= new Date();
+  };
+  
+  const getStatusText = (status: string) => {
+      switch (status) {
+          case "Ended": return "پایان یافته";
+          case "Canceled": return "کنسل شده";
+          case "Returning Series": return "در انتظار فصل جدید";
+          default: return "در حال پخش";
+      }
   };
 
   const scrollToActiveEpisode = () => {
@@ -333,6 +347,7 @@ export default function ShowDetailsPage() {
         setSeasonLoading(prev => ({...prev, [seasonNum]: true}));
         const sData = await getSeasonDetails(showId, seasonNum);
         targetEpisodes = sData?.episodes || [];
+        // ذخیره دیتا در استیت برای آپدیت شدن دکمه‌ها
         setAllSeasonsData((prev:any) => ({...prev, [seasonNum]: targetEpisodes}));
     }
 
@@ -515,15 +530,15 @@ export default function ShowDetailsPage() {
             <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-transparent"></div>
         </div>
         
-        <div className="absolute top-0 w-full p-6 flex justify-between items-center z-20">
-             <button onClick={() => router.back()} className="bg-white/10 hover:bg-white/20 p-3 rounded-full backdrop-blur-md transition-all border border-white/5"><ArrowRight size={20} /></button>
-             <button onClick={() => setShowShareModal(true)} className="bg-white/10 hover:bg-white/20 p-3 rounded-full backdrop-blur-md transition-all border border-white/5 text-[#ccff00]"><Share2 size={20} /></button>
-        </div>
+        {/* Top bar removed as requested (Back button removed, Share moved) */}
+        {/* <div className="absolute top-0 w-full p-6 flex justify-between items-center z-20"> ... </div> */}
 
         <div className="absolute bottom-0 w-full p-6 md:p-12 flex flex-col md:flex-row gap-8 items-end z-10 pb-20">
             <div className="flex-1 space-y-4">
                 <div className="flex items-center gap-3">
-                    <span className="bg-[#ccff00] text-black text-xs font-black px-2 py-1 rounded uppercase">{show.status === "Ended" ? "پایان یافته" : "در حال پخش"}</span>
+                    <span className="bg-[#ccff00] text-black text-xs font-black px-2 py-1 rounded uppercase">
+                        وضعیت پخش سریال: {getStatusText(show.status)}
+                    </span>
                     {watchedEpisodes.length > 0 && (
                         <div className="flex items-center gap-2 bg-black/50 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
                             <div className="w-16 h-1.5 bg-gray-700 rounded-full overflow-hidden">
@@ -534,10 +549,10 @@ export default function ShowDetailsPage() {
                     )}
                 </div>
 
-                <h1 className="text-5xl md:text-7xl font-black leading-tight text-white drop-shadow-2xl ltr text-left tracking-tighter">
+                <h1 className="text-5xl md:text-7xl font-black leading-tight text-white drop-shadow-2xl ltr text-right tracking-tighter">
                     {showEn?.name || show.name}
                 </h1>
-                <h2 className="text-xl md:text-2xl text-gray-300 font-bold ltr text-left opacity-90">
+                <h2 className="text-xl md:text-2xl text-gray-300 font-bold rtl text-right opacity-90">
                     {show.name !== show.original_name ? show.name : ''}
                 </h2>
                 
@@ -550,15 +565,28 @@ export default function ShowDetailsPage() {
                         }`}
                     >
                         {watchlistLoading ? <Loader2 className="animate-spin" size={18} /> : (inWatchlist ? <Check size={18} /> : <Plus size={18} />)}
-                        <span>{inWatchlist ? 'تو صف تماشا' : 'می‌خوام ببینم'}</span>
+                        <span>{inWatchlist ? 'در لیست سریال های من' : 'افزودن به سریال های من'}</span>
                     </button>
                     
-                    <button 
-                        onClick={() => setShowConfirmAll(true)}
-                        className="flex items-center gap-2 px-4 py-3 rounded-xl font-bold bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-all active:scale-95"
-                    >
-                        <CheckCircle2 size={18} className={progressPercent === 100 ? "text-[#ccff00]" : "text-gray-400"} />
-                        <span>کل سریال رو دیدم</span>
+                    {/* Seen Whole Show Button Logic */}
+                    {progressPercent === 100 ? (
+                        <span className="flex items-center gap-2 px-4 py-3 rounded-xl font-bold bg-green-500/20 text-green-400 border border-green-500/30 cursor-default select-none">
+                             <CheckCircle2 size={18} />
+                             <span>کامل تماشا شده</span>
+                        </span>
+                    ) : (
+                        <button 
+                            onClick={() => setShowConfirmAll(true)}
+                            className="flex items-center gap-2 px-4 py-3 rounded-xl font-bold bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-all active:scale-95"
+                        >
+                            <CheckCircle2 size={18} className="text-gray-400" />
+                            <span>کل سریال رو دیدم</span>
+                        </button>
+                    )}
+
+                    {/* Share Button Moved Here */}
+                    <button onClick={() => setShowShareModal(true)} className="flex items-center gap-2 px-4 py-3 rounded-xl font-bold bg-white/10 hover:bg-white/20 text-[#ccff00] border border-white/10 transition-all active:scale-95">
+                        <Share2 size={18} />
                     </button>
 
                     <span className="flex items-center gap-1 bg-black/40 px-3 py-1 rounded-full border border-white/10"><Star size={14} fill="#ccff00" className="text-[#ccff00]" /> {show.vote_average.toFixed(1)}</span>
@@ -595,14 +623,18 @@ export default function ShowDetailsPage() {
           {activeTab === 'about' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4">
                   <div className="lg:col-span-2 space-y-8">
-                      
+                      {/* ================= خلاصه داستان ================= */}
                       <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
-                           <h3 className="font-bold text-gray-200 mb-4 flex items-center gap-2"><Info className="text-[#ccff00]" size={18} /> خلاصه داستان</h3>
-                           <p className="text-gray-300 leading-relaxed text-sm md:text-base text-justify">
-                               {show.overview || "توضیحی برای این سریال ثبت نشده است."}
-                           </p>
-                      </div>
-
+                            <h3 className="font-bold text-gray-200 mb-4 flex items-center gap-2">
+                                <Info className="text-[#ccff00]" size={18} /> خلاصه داستان
+                            </h3>
+                            <p 
+                                className={`text-gray-300 leading-relaxed text-sm md:text-base ${isPersianText(show.overview) ? 'text-justify dir-rtl' : 'text-left dir-ltr font-sans opacity-90'}`}
+                            >
+                                {show.overview || "توضیحی برای این سریال ثبت نشده است."}
+                            </p>
+                        </div>
+                        {/* ================= امتیاز دهی ================= */}
                       <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
                           <h3 className="font-bold text-gray-200 mb-4 flex items-center gap-2"><Star className="text-[#ccff00]" size={18} /> امتیازدهی</h3>
                           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -642,7 +674,7 @@ export default function ShowDetailsPage() {
                           </div>
                       </div>
 
-                      {/* 🔥🔥 REFACTORED POLL: MULTI-SELECT 🔥🔥 */}
+                      {/* 🔥🔥 به وجد آورد 🔥🔥 */}
                       <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
                           <h3 className="font-bold text-gray-200 mb-4 flex items-center gap-2"><BarChart2 className="text-[#ccff00]" size={18} /> چه چیزی از این سریال تورو به وجد آورد؟</h3>
                           <p className="text-xs text-gray-500 mb-4">(چند گزینه انتخاب کنید)</p>
@@ -675,41 +707,7 @@ export default function ShowDetailsPage() {
                               })}
                           </div>
                       </div>
-
-                      <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
-                          <h3 className="font-bold text-gray-200 mb-6 flex items-center gap-2"><Tag className="text-[#ccff00]" size={18} /> سبک و حال‌وهوا</h3>
-                          <div className="flex flex-wrap gap-3">
-                              {show.genres?.map((genre: any, idx: number) => (
-                                  <span key={genre.id} className={`px-5 py-2.5 rounded-xl font-bold text-xs text-white shadow-lg bg-gradient-to-r ${getGenreColor(idx)}`}>
-                                      {genre.name}
-                                  </span>
-                              ))}
-                          </div>
-                      </div>
-
-                      <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
-                          <h3 className="font-bold text-gray-200 mb-6 flex items-center gap-2"><Play className="text-[#ccff00]" size={18} /> کجا ببینیم؟</h3>
-                          <div className="flex gap-4 md:gap-6 justify-center flex-wrap">
-                              <PlatformIcon name="فیلیمو" color="bg-yellow-500" />
-                              <PlatformIcon name="نماوا" color="bg-blue-600" />
-                              <PlatformIcon name="فیلم‌نت" color="bg-black border-white/20" icon={<span className="text-[#e50914] font-black">FN</span>} />
-                              <PlatformIcon name="بامابین" color="bg-yellow-400 text-black" icon={<span className="text-black font-black">BM</span>} />
-                              <PlatformIcon name="گوگل" color="bg-gray-700" icon={<Search size={20} />} />
-                          </div>
-                      </div>
-
-                      <div>
-                          <h3 className="font-bold text-gray-200 mb-4">بازیگران</h3>
-                          <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
-                              {cast.map((actor: any) => (
-                                  <div key={actor.id} className="flex flex-col items-center w-20 shrink-0">
-                                      <img src={getImageUrl(actor.profile_path)} className="w-16 h-16 rounded-full object-cover mb-2 border border-white/10" />
-                                      <span className="text-[10px] font-bold text-center line-clamp-1">{actor.original_name}</span>
-                                      <span className="text-[9px] text-gray-500 text-center line-clamp-1">{actor.character}</span>
-                                  </div>
-                              ))}
-                          </div>
-                      </div>
+                        {/* 🔥🔥 نظرات کاربران */}
 
                       <div>
                           <h3 className="font-bold text-gray-200 mb-4">نظرات کاربران</h3>
@@ -741,6 +739,18 @@ export default function ShowDetailsPage() {
                   </div>
 
                   <div className="space-y-8">
+                        {/* 🔥🔥 کجا ببینیم 🔥🔥 */}
+
+                      <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
+                          <h3 className="font-bold text-gray-200 mb-6 flex items-center gap-2"><Play className="text-[#ccff00]" size={18} /> کجا ببینیم؟</h3>
+                          <div className="flex gap-4 md:gap-6 justify-center flex-wrap">
+                              <PlatformIcon name="فیلیمو" color="bg-yellow-500" />
+                              <PlatformIcon name="نماوا" color="bg-blue-600" />
+                              <PlatformIcon name="فیلم‌نت" color="bg-black border-white/20" icon={<span className="text-[#e50914] font-black">FN</span>} />
+                              <PlatformIcon name="گوگل" color="bg-gray-700" icon={<Search size={20} />} />
+                          </div>
+                      </div>
+                                                {/* 🔥🔥 مشابه ها */}
                        <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
                             <h3 className="font-bold text-white mb-4">مشابه این سریال</h3>
                             <div className="grid grid-cols-2 gap-3">
@@ -751,6 +761,31 @@ export default function ShowDetailsPage() {
                                 ))}
                             </div>
                        </div>
+                        {/* 🔥🔥 ژانر🔥🔥 */}
+                      <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
+                          <h3 className="font-bold text-gray-200 mb-6 flex items-center gap-2"><Tag className="text-[#ccff00]" size={18} /> سبک و حال‌وهوا</h3>
+                          <div className="flex flex-wrap gap-3">
+                              {show.genres?.map((genre: any, idx: number) => (
+                                  <span key={genre.id} className={`px-5 py-2.5 rounded-xl font-bold text-xs text-white shadow-lg bg-gradient-to-r ${getGenreColor(idx)}`}>
+                                      {genre.name}
+                                  </span>
+                              ))}
+                          </div>
+                      </div>
+                        {/* 🔥🔥 بازیگران */}
+
+                      <div>
+                          <h3 className="font-bold text-gray-200 mb-4">بازیگران</h3>
+                          <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
+                              {cast.map((actor: any) => (
+                                  <div key={actor.id} className="flex flex-col items-center w-20 shrink-0">
+                                      <img src={getImageUrl(actor.profile_path)} className="w-16 h-16 rounded-full object-cover mb-2 border border-white/10" />
+                                      <span className="text-[10px] font-bold text-center line-clamp-1">{actor.original_name}</span>
+                                      <span className="text-[9px] text-gray-500 text-center line-clamp-1">{actor.character}</span>
+                                  </div>
+                              ))}
+                          </div>
+                      </div>
                   </div>
               </div>
           )}
@@ -761,7 +796,7 @@ export default function ShowDetailsPage() {
                   
                   {/* 1. Continue Tracking */}
                   <div className="space-y-4">
-                       <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between">
                            <h3 className="font-bold text-xl flex items-center gap-2"><Play size={20} className="text-[#ccff00]" /> ادامه تماشا</h3>
                            <div className="flex items-center gap-2">
                                 <button 
@@ -793,23 +828,23 @@ export default function ShowDetailsPage() {
                                const isWatched = watchedEpisodes.includes(ep.id);
                                return (
                                    <div id={`ep-${ep.id}`} key={ep.id} className={`snap-start shrink-0 w-64 h-24 bg-[#1a1a1a] rounded-xl border flex items-center overflow-hidden transition-all group relative ${isWatched ? 'border-[#ccff00]/50' : 'border-white/10 hover:border-white/30'}`}>
-                                       <div className="w-24 h-full relative cursor-pointer" onClick={() => setSelectedEp(ep)}>
-                                           <img src={getImageUrl(ep.still_path)} className={`w-full h-full object-cover ${isWatched ? '' : 'grayscale opacity-60'}`} />
-                                       </div>
-                                       <div className="flex-1 px-3 flex flex-col justify-center cursor-pointer" onClick={() => setSelectedEp(ep)}>
-                                            <span className="text-[10px] text-gray-500 font-bold tracking-wider mb-1">E{ep.episode_number}</span>
-                                            <h4 className={`text-xs font-bold line-clamp-2 ${isWatched ? 'text-[#ccff00]' : 'text-gray-200'}`}>{ep.name}</h4>
-                                       </div>
-                                       {isReleased(ep.air_date) && (
-                                           <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                                <button 
-                                                    onClick={(e) => { e.stopPropagation(); toggleWatched(ep.id); }}
-                                                    className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all active:scale-75 ${isWatched ? 'bg-[#ccff00] border-[#ccff00]' : 'border-gray-600 hover:border-white'}`}
-                                                >
-                                                    {isWatched && <Check size={16} className="text-black" strokeWidth={3} />}
-                                                </button>
+                                           <div className="w-24 h-full relative cursor-pointer" onClick={() => setSelectedEp(ep)}>
+                                                <img src={getImageUrl(ep.still_path)} className={`w-full h-full object-cover ${isWatched ? '' : 'grayscale opacity-60'}`} />
                                            </div>
-                                       )}
+                                           <div className="flex-1 px-3 flex flex-col justify-center cursor-pointer" onClick={() => setSelectedEp(ep)}>
+                                                <span className="text-[10px] text-gray-500 font-bold tracking-wider mb-1">E{ep.episode_number}</span>
+                                                <h4 className={`text-xs font-bold line-clamp-2 ${isWatched ? 'text-[#ccff00]' : 'text-gray-200'}`}>{ep.name}</h4>
+                                           </div>
+                                           {isReleased(ep.air_date) && (
+                                               <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); toggleWatched(ep.id); }}
+                                                        className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all active:scale-75 ${isWatched ? 'bg-[#ccff00] border-[#ccff00]' : 'border-gray-600 hover:border-white'}`}
+                                                    >
+                                                        {isWatched && <Check size={16} className="text-black" strokeWidth={3} />}
+                                                    </button>
+                                               </div>
+                                           )}
                                    </div>
                                )
                            })}
@@ -903,10 +938,10 @@ export default function ShowDetailsPage() {
                                                                   </div>
                                                               </div>
                                                               <button 
-                                                                onClick={(e) => { e.stopPropagation(); toggleWatched(ep.id); }}
-                                                                className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all active:scale-90 ${isWatched ? 'bg-[#ccff00] border-[#ccff00]' : 'border-gray-600 hover:border-white opacity-0 group-hover:opacity-100'}`}
+                                                                  onClick={(e) => { e.stopPropagation(); toggleWatched(ep.id); }}
+                                                                  className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all active:scale-90 ${isWatched ? 'bg-[#ccff00] border-[#ccff00]' : 'border-gray-600 hover:border-white opacity-0 group-hover:opacity-100'}`}
                                                               >
-                                                                  {isWatched && <Check size={16} className="text-black" />}
+                                                                      {isWatched && <Check size={16} className="text-black" />}
                                                               </button>
                                                           </div>
                                                       )
