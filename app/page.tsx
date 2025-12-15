@@ -19,7 +19,7 @@ const POSTERS = [
   "https://images.unsplash.com/photo-1594909122845-11baa439b7bf?q=80&w=500&auto=format&fit=crop", // Marvel vibe
 ];
 
-export default function OnboardingPage() {
+export default function WelcomePage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -33,7 +33,7 @@ export default function OnboardingPage() {
   }, []);
 
   return (
-    <div className="h-screen w-full bg-[#050505] text-white font-['Vazirmatn'] overflow-hidden relative flex flex-col items-center justify-end pb-16 md:pb-24">
+    <div dir="rtl" className="h-screen w-full bg-[#050505] text-white font-['Vazirmatn'] overflow-hidden relative flex flex-col items-center justify-end pb-16 md:pb-24">
       
       {/* --- BACKGROUND POSTER WALL (Marquee Effect) --- */}
       <div className="absolute inset-0 z-0 opacity-40 grayscale-[50%] brightness-[0.4] pointer-events-none overflow-hidden">
