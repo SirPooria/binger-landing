@@ -4,47 +4,49 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowLeft, Tv, User } from 'lucide-react';
-// 👇 تغییر ۱: ایمپورت کردن تابع جدید سازنده کلاینت
 import { createClient } from '@/lib/supabase';
-
-// 👇 اگر عکس‌های خودتان را در پوشه public/posters ریختید، این خط را فعال کنید:
-// const POSTERS = ["/posters/1.jpg", "/posters/2.jpg", "/posters/3.jpg", "/posters/4.jpg", "/posters/5.jpg", "/posters/6.jpg"];
-
-// 👇 فعلاً از این لینک‌های تستی استفاده کنید تا مطمئن شویم کد سالم است:
-const POSTERS = [
-  "https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=500&auto=format&fit=crop", // Cinema 1
-  "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=500&auto=format&fit=crop", // Movie 2
-  "https://images.unsplash.com/photo-1598899134739-24c46f58b8c0?q=80&w=500&auto=format&fit=crop", // Movie 3
-  "https://images.unsplash.com/photo-1574375927938-d5a98e8efe30?q=80&w=500&auto=format&fit=crop", // Joker vibe
-  "https://images.unsplash.com/photo-1616530940355-351fabd9524b?q=80&w=500&auto=format&fit=crop", // Matrix vibe
-  "https://images.unsplash.com/photo-1594909122845-11baa439b7bf?q=80&w=500&auto=format&fit=crop", // Marvel vibe
-];
+import { getTrendingShows, getImageUrl } from '@/lib/tmdbClient';
 
 export default function WelcomePage() {
-  // 👇 تغییر ۲: ساخت کلاینت سوپابیس برای استفاده در مرورگر
   const supabase = createClient();
   
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [posters, setPosters] = useState<string[]>([]);
 
   useEffect(() => {
     const checkUser = async () => {
-      // حالا این تابع درست کار می‌کند چون supabase را بالا تعریف کردیم
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
       setLoading(false);
     };
+    
+    const fetchPosters = async () => {
+      const showsPage1 = await getTrendingShows(1);
+      const showsPage2 = await getTrendingShows(2);
+      const allShows = [...showsPage1, ...showsPage2];
+      
+      const posterUrls = allShows
+        .map(show => getImageUrl(show.poster_path))
+        .filter(url => url !== '/placeholder.png');
+
+      setPosters(posterUrls);
+    };
+
     checkUser();
+    fetchPosters();
   }, []);
 
+  const displayPosters = posters.length > 0 ? posters : new Array(12).fill("/placeholder.png");
+
   return (
-    <div dir="rtl" className="h-screen w-full bg-[#050505] text-white font-['Vazirmatn'] overflow-hidden relative flex flex-col items-center justify-end pb-16 md:pb-24">
+    <div dir="rtl" className="h-screen w-full bg-[#050505] text-white font-['Vazirmatn'] overflow-hidden relative flex flex-col items-center justify-center">
       
       {/* --- BACKGROUND POSTER WALL (Marquee Effect) --- */}
       <div className="absolute inset-0 z-0 opacity-40 grayscale-[50%] brightness-[0.4] pointer-events-none overflow-hidden">
          {/* ردیف اول */}
          <div className="absolute -top-20 -left-20 w-[200%] flex gap-4 rotate-12 animate-marquee-slow">
-             {[...POSTERS, ...POSTERS, ...POSTERS].map((src, i) => (
+             {[...displayPosters, ...displayPosters, ...displayPosters].map((src, i) => (
                  <div key={`r1-${i}`} className="w-40 h-60 md:w-56 md:h-80 bg-gray-800 rounded-xl overflow-hidden shrink-0 border border-white/5 shadow-2xl">
                     <img src={src} className="w-full h-full object-cover" alt="Poster" />
                  </div>
@@ -53,7 +55,7 @@ export default function WelcomePage() {
          
          {/* ردیف دوم */}
          <div className="absolute top-40 md:top-60 -left-20 w-[200%] flex gap-4 rotate-12 animate-marquee-reverse">
-             {[...POSTERS, ...POSTERS, ...POSTERS].map((src, i) => (
+             {[...displayPosters, ...displayPosters, ...displayPosters].map((src, i) => (
                  <div key={`r2-${i}`} className="w-40 h-60 md:w-56 md:h-80 bg-gray-800 rounded-xl overflow-hidden shrink-0 border border-white/5 shadow-2xl">
                     <img src={src} className="w-full h-full object-cover" alt="Poster" />
                  </div>
