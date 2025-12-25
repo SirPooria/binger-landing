@@ -1,12 +1,16 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+// 👇 تغییر ۱: استفاده از کلاینت جدید
+import { createClient } from '@/lib/supabase';
 import { getShowDetails, getImageUrl } from '@/lib/tmdbClient';
 import { useRouter } from 'next/navigation';
 import { Loader2, ArrowRight, ListChecks, Bookmark, Eye, Clock, Tv } from 'lucide-react';
 
 export default function MyListsPage() {
+  // 👇 تغییر ۲: ساخت نمونه کلاینت سوپابیس (با as any برای جلوگیری از ارور تایپ)
+  const supabase = createClient() as any;
+  
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'watched' | 'watchlist'>('watched');
   const [shows, setShows] = useState<any[]>([]);
@@ -35,16 +39,16 @@ export default function MyListsPage() {
       
       if (watchedIds) {
         allWatchedEps = watchedIds;
-        setMyShowsCount(prev => ({ ...prev, watched: Array.from(new Set(watchedIds.map(item => item.show_id))).length }));
+        setMyShowsCount(prev => ({ ...prev, watched: Array.from(new Set(watchedIds.map((item: any) => item.show_id))).length }));
       }
       if (watchlistIds) {
          setMyShowsCount(prev => ({ ...prev, watchlist: watchlistIds.length }));
       }
       
       if (activeTab === 'watched') {
-        if (watchedIds) uniqueShowIds = Array.from(new Set(watchedIds.map(item => item.show_id)));
+        if (watchedIds) uniqueShowIds = Array.from(new Set(watchedIds.map((item: any) => item.show_id)));
       } else {
-        if (watchlistIds) uniqueShowIds = watchlistIds.map(item => item.show_id);
+        if (watchlistIds) uniqueShowIds = watchlistIds.map((item: any) => item.show_id);
       }
       
       // 2. گرفتن اطلاعات هر سریال از TMDB
@@ -147,7 +151,7 @@ export default function MyListsPage() {
   }
 
   return (
-    <div dir="rtl" className="min-h-screen bg-[#050505] text-white font-['Vazirmatn'] p-4 md:p-8 pb-20">
+    <div dir="rtl" className="min-h-screen bg-[#050505] text-white font-['Vazirmatn'] p-4 md:p-8 pb-20 pt-28 md:pt-32">
       
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
@@ -156,7 +160,7 @@ export default function MyListsPage() {
         </button>
         <h1 className="text-2xl font-black flex items-center gap-2">
             <ListChecks className="text-[#ccff00]" />
-            کتابخانه شخصی
+            سریال های من
         </h1>
       </div>
 

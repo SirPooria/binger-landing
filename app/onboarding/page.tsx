@@ -2,12 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@/lib/supabase';
 import { getTrendingShows, getIranianShows, getImageUrl } from '@/lib/tmdbClient';
 import { Check, Loader2, ArrowLeft, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti'; // برای جشن پایان
 
 export default function Onboarding() {
+  const supabase = createClient() as any;
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [shows, setShows] = useState<any[]>([]);

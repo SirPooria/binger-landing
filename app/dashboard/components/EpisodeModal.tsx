@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { getEpisodeDetails, getImageUrl } from '@/lib/tmdbClient';
-import { supabase } from '@/lib/supabaseClient';
+// 👇 تغییر ۱: استفاده از کلاینت جدید
+import { createClient } from '@/lib/supabase';
 import html2canvas from 'html2canvas'; 
 import { 
   X, Loader2, Check, MessageSquare, Send, Heart, 
@@ -40,6 +41,9 @@ const getUserBadge = (email: string) => {
 };
 
 export default function EpisodeModal({ showId, seasonNum, episodeNum, onClose, onWatchedChange }: any) {
+  // 👇 تغییر ۲: ساخت نمونه کلاینت سوپابیس با بای‌پس کردن تایپ‌اسکریپت
+  const supabase = createClient() as any;
+  
   // --- States ---
   const [currentEpNum, setCurrentEpNum] = useState(episodeNum);
   
@@ -149,7 +153,7 @@ export default function EpisodeModal({ showId, seasonNum, episodeNum, onClose, o
         .on(
             'postgres_changes',
             { event: 'INSERT', schema: 'public', table: 'comments', filter: `episode_id=eq.${data.id}` },
-            (payload) => {
+            (payload: any) => {
                 if (payload.new.user_id !== user.id) {
                     const newCm = { ...payload.new, likes_count: 0, email: 'کاربر آنلاین' }; 
                     setComments((prev: any[]) => [...prev, newCm]);
@@ -255,7 +259,6 @@ export default function EpisodeModal({ showId, seasonNum, episodeNum, onClose, o
     
     if (error) {
         console.error("Save Error:", error);
-        // اینجا آلرت را برداشتیم که کاربر اذیت نشود، چون معمولا به خاطر RLS است
     } else if (data) {
         setComments((prev: any[]) => [...prev, { ...data[0], likes_count: 0 }]);
         if (scrollRef.current) setTimeout(() => scrollRef.current!.scrollTop = scrollRef.current!.scrollHeight, 100);
@@ -434,12 +437,12 @@ export default function EpisodeModal({ showId, seasonNum, episodeNum, onClose, o
             
             <div ref={scrollRef} className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4 relative">
                 {!isWatched && isReleased && (
-                     <div className="absolute inset-0 z-10 backdrop-blur-md bg-black/10 flex items-center justify-center">
-                         <div className="bg-black/80 p-4 rounded-2xl border border-white/10 text-center">
-                             <AlertTriangle className="mx-auto text-yellow-500 mb-2" />
-                             <p className="text-xs text-gray-300">اول ثبت کن که دیدی، بعد بخون!</p>
-                         </div>
-                     </div>
+                      <div className="absolute inset-0 z-10 backdrop-blur-md bg-black/10 flex items-center justify-center">
+                          <div className="bg-black/80 p-4 rounded-2xl border border-white/10 text-center">
+                              <AlertTriangle className="mx-auto text-yellow-500 mb-2" />
+                              <p className="text-xs text-gray-300">اول ثبت کن که دیدی، بعد بخون!</p>
+                          </div>
+                      </div>
                 )}
 
                 {rootComments.map((c) => {

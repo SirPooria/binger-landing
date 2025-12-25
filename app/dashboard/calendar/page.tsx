@@ -1,33 +1,28 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
-import { getShowDetails, getImageUrl, getGlobalAiringShows } from '@/lib/tmdbClient';
+import { createClient } from '@/lib/supabase';
+import { getShowDetails, getImageUrl, getGlobalAiringShows, getBackdropUrl } from '@/lib/tmdbClient';
 import { useRouter } from 'next/navigation';
-import { Loader2, Calendar as CalIcon, ArrowRight, List, Grid, Zap, AlertCircle } from 'lucide-react';
+import { Loader2, Calendar as CalIcon, ArrowRight, Clock, Zap, AlertCircle, CheckCircle, PlayCircle } from 'lucide-react';
 import EpisodeModal from '../components/EpisodeModal';
 
 export default function CalendarPage() {
   const router = useRouter();
+  // استفاده از as any برای جلوگیری از ارورهای تایپ‌اسکریپت
+  const supabase = createClient() as any;
+  
   const [loading, setLoading] = useState(true);
-  const [allUpcomingEpisodes, setAllUpcomingEpisodes] = useState<any[]>([]);
+  const [myEpisodes, setMyEpisodes] = useState<any[]>([]);
+  const [globalEpisodes, setGlobalEpisodes] = useState<any[]>([]);
   const [selectedEpData, setSelectedEpData] = useState<any>(null);
-  const [myShowsCount, setMyShowsCount] = useState(0);
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list'); 
-  const [hasGlobalTrends, setHasGlobalTrends] = useState(false); 
 
   useEffect(() => {
     const fetchCalendar = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { window.location.href = '/login'; return; }
 
-      // 1. گرفتن دیتای تماشای کاربر برای محاسبه درصد
-      const { data: watchedData } = await supabase.from('watched').select('show_id');
-      const watchedMap: any = {};
-      watchedData?.forEach((w: any) => {
-          watchedMap[w.show_id] = (watchedMap[w.show_id] || 0) + 1;
-      });
-
+      // 1. دریافت لیست سریال‌های کاربر
       const p1 = supabase.from('watched').select('show_id').eq('user_id', user.id);
       const p2 = supabase.from('watchlist').select('show_id').eq('user_id', user.id);
       const [wRes, lRes] = await Promise.all([p1, p2]);
@@ -38,65 +33,34 @@ export default function CalendarPage() {
       
       const uniqueMyIds = Array.from(myShowIds);
 
-      // 2. سریال‌های من (با محاسبه پیشرفت)
+      // 2. دریافت جزئیات سریال‌های من و فیلتر کردن اپیزودهای آینده
       let myUpcoming: any[] = [];
       if (uniqueMyIds.length > 0) {
-        const showsData = await Promise.all(uniqueMyIds.map(async (id) => await getShowDetails(String(id))));
+        // برای جلوگیری از کندی، فقط ۲۰ تای آخر را می‌گیریم (در نسخه واقعی باید صفحه‌بندی شود)
+        const recentIds = uniqueMyIds.slice(0, 20);
+        const showsData = await Promise.all(recentIds.map(async (id) => await getShowDetails(String(id))));
         
         myUpcoming = showsData
           .filter((s: any) => s && s.next_episode_to_air && new Date(s.next_episode_to_air.air_date) >= new Date())
-          .map((s: any) => {
-              // محاسبه پیشرفت
-              const totalReleased = s.seasons?.reduce((sum: number, season: any) => sum + (season.air_date && new Date(season.air_date) <= new Date() ? season.episode_count : 0), 0) || 0;
-              const userWatched = watchedMap[s.id] || 0;
-              const progress = totalReleased > 0 ? Math.round((userWatched / totalReleased) * 100) : 0;
-
-              return { ...s, isMine: true, progress };
-          });
+          .map((s: any) => ({ ...s, isMine: true }));
       }
-      setMyShowsCount(myUpcoming.length);
 
-      // 3. ترند جهانی (بدون پیشرفت)
+      // 3. دریافت ترندهای جهانی در حال پخش
       const globalData = await getGlobalAiringShows();
-      const trending: any[] = globalData.map((s: any) => ({ ...s, isMine: false, progress: 0 }));
+      const trending = globalData
+        .filter((s: any) => !myShowIds.has(s.id)) // حذف تکراری‌ها (اگر کاربر خودش فالو کرده)
+        .map((s: any) => ({ ...s, isMine: false }));
       
-      const allShowsMap = new Map();
-      myUpcoming.forEach(s => allShowsMap.set(s.id, s));
-      
-      trending.forEach(s => {
-          if (!myShowIds.has(s.id)) {
-              allShowsMap.set(s.id, s);
-          }
-      });
-      
-      if (allShowsMap.size > myUpcoming.length) {
-          setHasGlobalTrends(true);
-      }
-      
-      const finalSortedList = Array.from(allShowsMap.values()).sort((a: any, b: any) => 
-        new Date(a.next_episode_to_air.air_date).getTime() - new Date(b.next_episode_to_air.air_date).getTime()
-      );
+      // مرتب‌سازی بر اساس تاریخ پخش (نزدیک‌ترین اول)
+      const sortFn = (a: any, b: any) => new Date(a.next_episode_to_air.air_date).getTime() - new Date(b.next_episode_to_air.air_date).getTime();
 
-      setAllUpcomingEpisodes(finalSortedList);
+      setMyEpisodes(myUpcoming.sort(sortFn));
+      setGlobalEpisodes(trending.sort(sortFn));
       setLoading(false);
     };
 
     fetchCalendar();
   }, []);
-
-  const getDaysLeft = (dateString: string) => {
-    const date = new Date(dateString);
-    const today = new Date();
-    if (date.toDateString() === today.toDateString()) return "پخش: همین امروز! 🔥";
-    
-    const diffTime = date.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-    
-    if (diffDays === 1) return "پخش: فردا";
-    if (diffDays <= 7) return `پخش: ${diffDays} روز دیگر`;
-    
-    return new Date(dateString).toLocaleDateString('fa-IR');
-  };
 
   const openModal = (item: any) => {
     setSelectedEpData({
@@ -106,77 +70,17 @@ export default function CalendarPage() {
     });
   };
 
-  const RenderEpisodeCard = (item: any) => {
-    const dateText = getDaysLeft(item.next_episode_to_air.air_date);
-    const isToday = dateText.includes("امروز");
-    
-    // نوار پیشرفت (فقط برای سریال‌های من)
-    const ProgressBar = () => item.isMine && (
-        <div className="mt-3 w-full h-1 bg-white/5 rounded-full overflow-hidden flex items-center gap-2">
-             <div className={`h-full ${item.progress >= 90 ? 'bg-green-500' : 'bg-cyan-400'}`} style={{ width: `${item.progress}%` }}></div>
-        </div>
-    );
-
-    if (viewMode === 'list') {
-        return (
-            <div 
-                key={item.id}
-                onClick={() => openModal(item)}
-                className="bg-white/5 border border-white/5 hover:border-cyan-500/50 hover:bg-white/10 rounded-2xl p-4 flex gap-4 transition-all cursor-pointer group shadow-lg"
-            >
-                <img src={getImageUrl(item.poster_path)} className="w-16 h-24 object-cover rounded-xl shadow-md shrink-0" />
-                
-                <div className="flex-1 flex flex-col justify-center">
-                    <div className="flex justify-between items-start">
-                        <h3 className="font-black text-lg text-white line-clamp-1">{item.name}</h3>
-                        <span className={`text-xs px-3 py-1 rounded-full font-bold whitespace-nowrap ${isToday ? 'bg-red-500/20 text-red-400' : 'bg-[#ccff00]/10 text-[#ccff00]'}`}>
-                            {dateText}
-                        </span>
-                    </div>
-                    
-                    <div className="mt-2 text-gray-400 text-sm ltr text-right flex items-center justify-end gap-2">
-                        <span className="font-medium">{item.next_episode_to_air.name}</span>
-                        <span className="w-1 h-1 bg-gray-600 rounded-full"></span>
-                        <span>S{item.next_episode_to_air.season_number} | E{item.next_episode_to_air.episode_number}</span>
-                    </div>
-                    
-                    <div className="mt-2 text-[10px] text-gray-500 flex justify-between items-center">
-                        <span>{item.isMine ? "شما این سریال را دنبال می‌کنید" : "ترند جهانی"}</span>
-                        {item.isMine && <span>{item.progress}% دیده شده</span>}
-                    </div>
-                    <ProgressBar />
-                </div>
-            </div>
-        );
-    }
-    
+  if (loading) {
     return (
-        <div 
-            key={item.id}
-            onClick={() => openModal(item)}
-            className="group relative aspect-[2/3] bg-white/5 rounded-xl overflow-hidden cursor-pointer hover:scale-[1.02] transition-transform duration-300 border border-white/5 hover:border-cyan-500/50"
-        >
-            <img 
-                src={getImageUrl(item.poster_path)} 
-                alt={item.name}
-                className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-90"></div>
-            
-            <div className="absolute bottom-0 p-3 w-full">
-                <h3 className="text-sm font-bold text-white line-clamp-1 ltr text-left">{item.name}</h3>
-                <div className="flex justify-between items-center mt-1">
-                    <span className={`text-[10px] font-bold ${isToday ? 'text-red-400' : 'text-[#ccff00]'}`}>{dateText}</span>
-                    {item.isMine && <span className="text-[10px] text-cyan-400">{item.progress}%</span>}
-                </div>
-                {item.isMine && <div className="mt-1 w-full h-0.5 bg-white/20 rounded-full overflow-hidden"><div className="h-full bg-cyan-400" style={{ width: `${item.progress}%` }}></div></div>}
-            </div>
+        <div className="min-h-screen bg-[#050505] flex justify-center items-center pt-20 text-[#ccff00]">
+            <Loader2 className="animate-spin" size={40} />
         </div>
     );
-  };
+  }
 
   return (
-    <div dir="rtl" className="min-h-screen bg-[#050505] text-white font-['Vazirmatn'] p-4 md:p-8 pb-20">
+    // 👇 اصلاح لی‌اوت: اضافه کردن پدینگ بالا برای جلوگیری از تداخل با هدر
+    <div dir="rtl" className="min-h-screen bg-[#050505] text-white font-['Vazirmatn'] p-4 md:p-8 pb-20 pt-28 md:pt-32">
       
       {/* MODAL */}
       {selectedEpData && (
@@ -189,80 +93,131 @@ export default function CalendarPage() {
         />
       )}
 
-      {/* Header & Controls */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-        <div className="flex items-center gap-4">
+      {/* Header */}
+      <div className="flex items-center gap-4 mb-10">
           <button onClick={() => router.back()} className="bg-white/10 p-2 rounded-full hover:bg-white/20 transition-all cursor-pointer">
               <ArrowRight size={20} />
           </button>
-          <h1 className="text-2xl font-black flex items-center gap-2">
-              <CalIcon className="text-[#ccff00]" />
-              مرکز پخش {myShowsCount > 0 ? `(${myShowsCount} سریال)` : ''}
-          </h1>
-        </div>
-
-        {/* دکمه‌های حالت نمایش */}
-        <div className="flex gap-2 bg-white/5 p-1 rounded-xl border border-white/10">
-            <button 
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded-lg transition-colors cursor-pointer ${viewMode === 'list' ? 'bg-[#ccff00] text-black' : 'text-gray-400 hover:bg-white/10'}`}
-            >
-                <List size={20} />
-            </button>
-            <button 
-                onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-lg transition-colors cursor-pointer ${viewMode === 'grid' ? 'bg-[#ccff00] text-black' : 'text-gray-400 hover:bg-white/10'}`}
-            >
-                <Grid size={20} />
-            </button>
-        </div>
+          <div>
+              <h1 className="text-2xl md:text-3xl font-black flex items-center gap-2">
+                  <CalIcon className="text-[#ccff00]" />
+                  تقویم پخش
+              </h1>
+              <p className="text-xs text-gray-400 mt-1">برنامه زمانی پخش سریال‌های شما و جهان</p>
+          </div>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center mt-20 text-[#ccff00]"><Loader2 className="animate-spin" size={40} /></div>
-      ) : allUpcomingEpisodes.length > 0 ? (
-        <div className="max-w-4xl mx-auto space-y-4">
-            
-            <p className="text-gray-400 text-sm text-center max-w-2xl mx-auto mb-10">
-                اینجا تمام اپیزودهایی که به زودی پخش می‌شوند، به ترتیب زمانی نمایش داده شده‌اند.
-            </p>
-
-            <div className={viewMode === 'grid' ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4' : 'space-y-4'}>
-                {allUpcomingEpisodes.map((item, index) => (
-                    <React.Fragment key={item.id}>
-                        
-                        {!item.isMine && index > 0 && allUpcomingEpisodes[index-1].isMine && (
-                            <div className={`my-8 ${viewMode === 'grid' ? 'col-span-full' : 'w-full'}`}>
-                                <div className="flex items-center">
-                                    <div className="flex-grow border-t border-white/10"></div>
-                                    <span className="flex-shrink mx-4 text-gray-500 text-sm flex items-center gap-2">
-                                        <Zap size={16} className="text-red-400" />
-                                        سریال‌های در حال پخش جهانی
-                                    </span>
-                                    <div className="flex-grow border-t border-white/10"></div>
-                                </div>
-                            </div>
-                        )}
-                        
-                        {RenderEpisodeCard(item)}
-                    </React.Fragment>
-                ))}
-            </div>
-            
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center mt-20 text-gray-500 gap-4 text-center">
+      {myEpisodes.length === 0 && globalEpisodes.length === 0 ? (
+        <div className="flex flex-col items-center justify-center mt-10 text-gray-500 gap-4 text-center bg-white/5 p-10 rounded-3xl border border-white/5 border-dashed">
             <AlertCircle size={64} strokeWidth={1} />
-            <p className="text-lg">هیچ قسمت جدیدی تو راه نیست! سریال جدیدی را به واچ‌لیست خود اضافه کنید.</p>
+            <p className="text-lg">هیچ قسمت جدیدی تو راه نیست!</p>
             <button 
                 onClick={() => router.push('/dashboard')}
                 className="bg-[#ccff00] text-black px-6 py-2 rounded-xl font-bold hover:bg-[#b3e600] transition-colors mt-4 cursor-pointer"
             >
-                پیدا کردن سریال
+                پیدا کردن سریال جدید
             </button>
+        </div>
+      ) : (
+        <div className="max-w-5xl mx-auto space-y-12">
+            
+            {/* 1. لیست سریال‌های من (اولویت بالا) */}
+            {myEpisodes.length > 0 && (
+                <section className="animate-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex items-center gap-2 mb-6 border-r-4 border-[#ccff00] pr-3">
+                        <CheckCircle className="text-[#ccff00]" size={24} />
+                        <h2 className="text-xl font-black text-white">سریال‌های من</h2>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+                        {myEpisodes.map((item) => (
+                            <LandscapeCard key={item.id} item={item} onClick={() => openModal(item)} isMine={true} />
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {/* 2. لیست جهانی (پیشنهادی) */}
+            {globalEpisodes.length > 0 && (
+                <section className="animate-in slide-in-from-bottom-8 duration-700 delay-100">
+                    <div className="flex items-center gap-2 mb-6 border-r-4 border-red-500 pr-3">
+                        <Zap className="text-red-500 fill-red-500" size={24} />
+                        <h2 className="text-xl font-black text-white">پخش جهانی (پیشنهادی)</h2>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {globalEpisodes.map((item) => (
+                            <LandscapeCard key={item.id} item={item} onClick={() => openModal(item)} isMine={false} />
+                        ))}
+                    </div>
+                </section>
+            )}
+
         </div>
       )}
 
     </div>
   );
 }
+
+// --- کامپوننت کارت افقی جدید (Landscape) ---
+const LandscapeCard = ({ item, onClick, isMine }: any) => {
+    const ep = item.next_episode_to_air;
+    
+    // محاسبه زمان باقی‌مانده
+    const getDaysLeft = (dateString: string) => {
+        const date = new Date(dateString);
+        const today = new Date();
+        const isToday = date.toDateString() === today.toDateString();
+        
+        const diffTime = date.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+        
+        if (isToday) return { text: "پخش: امروز! 🔥", color: "bg-[#ccff00] text-black" };
+        if (diffDays === 1) return { text: "پخش: فردا", color: "bg-white text-black" };
+        if (diffDays <= 7) return { text: `${diffDays} روز دیگر`, color: "bg-white/20 text-white" };
+        return { text: new Date(dateString).toLocaleDateString('fa-IR'), color: "bg-white/10 text-gray-300" };
+    };
+
+    const status = getDaysLeft(ep.air_date);
+
+    return (
+        <div 
+            onClick={onClick}
+            className={`group relative aspect-video w-full rounded-2xl overflow-hidden cursor-pointer border transition-all duration-300 hover:scale-[1.02] shadow-xl ${isMine ? 'border-[#ccff00]/30 hover:border-[#ccff00]' : 'border-white/5 hover:border-white/20'}`}
+        >
+            {/* تصویر پس‌زمینه (Backdrop) */}
+            <img 
+                src={getBackdropUrl(item.backdrop_path || item.poster_path)} 
+                alt={item.name} 
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            />
+            
+            {/* گرادینت برای خوانایی متن */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-90 group-hover:opacity-80 transition-opacity"></div>
+
+            {/* بج وضعیت زمان */}
+            <div className={`absolute top-3 right-3 px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg flex items-center gap-1 ${status.color}`}>
+                <Clock size={12} /> {status.text}
+            </div>
+
+            {/* محتوای متنی پایین */}
+            <div className="absolute bottom-0 left-0 w-full p-4 md:p-5">
+                <h3 className="text-lg md:text-xl font-black text-white leading-tight mb-1 drop-shadow-md group-hover:text-[#ccff00] transition-colors line-clamp-1">{item.name}</h3>
+                
+                <div className="flex justify-between items-end">
+                    <div className="flex flex-col">
+                        <span className="text-sm font-bold text-gray-200 flex items-center gap-2">
+                            {ep.name || `Episode ${ep.episode_number}`}
+                        </span>
+                        <span className="text-xs text-gray-400 ltr text-right font-mono mt-0.5">
+                            S{ep.season_number} | E{ep.episode_number}
+                        </span>
+                    </div>
+
+                    <div className="bg-white/10 p-2 rounded-full backdrop-blur-md group-hover:bg-[#ccff00] group-hover:text-black transition-colors">
+                        <PlayCircle size={20} />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};

@@ -4,7 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowLeft, Tv, User } from 'lucide-react';
-import { supabase } from '@/lib/supabaseClient';
+// 👇 تغییر ۱: ایمپورت کردن تابع جدید سازنده کلاینت
+import { createClient } from '@/lib/supabase';
 
 // 👇 اگر عکس‌های خودتان را در پوشه public/posters ریختید، این خط را فعال کنید:
 // const POSTERS = ["/posters/1.jpg", "/posters/2.jpg", "/posters/3.jpg", "/posters/4.jpg", "/posters/5.jpg", "/posters/6.jpg"];
@@ -20,11 +21,15 @@ const POSTERS = [
 ];
 
 export default function WelcomePage() {
+  // 👇 تغییر ۲: ساخت کلاینت سوپابیس برای استفاده در مرورگر
+  const supabase = createClient();
+  
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const checkUser = async () => {
+      // حالا این تابع درست کار می‌کند چون supabase را بالا تعریف کردیم
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
       setLoading(false);

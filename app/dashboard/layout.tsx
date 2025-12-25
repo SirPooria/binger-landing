@@ -3,10 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Home, Search, List, User, LogOut, Calendar as CalIcon, X, Sparkles, Menu, Loader2, Star, Eye } from 'lucide-react';
-import { supabase } from '@/lib/supabaseClient';
+// 👇 تغییر ۱: استفاده از کلاینت جدید
+import { createClient } from '@/lib/supabase';
 import { searchShows, getImageUrl } from '@/lib/tmdbClient';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  // 👇 تغییر ۲: ساخت نمونه کلاینت سوپابیس
+  const supabase = createClient();
+  
   const router = useRouter();
   const pathname = usePathname();
   
@@ -118,7 +122,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <nav className="flex-1 w-full space-y-2">
           <MenuItem icon={<Home size={20} />} label="ویترین" active={pathname === '/dashboard'} onClick={() => router.push('/dashboard')} />
           <MenuItem icon={<CalIcon size={20} />} label="تقویم پخش" active={pathname === '/dashboard/calendar'} onClick={() => router.push('/dashboard/calendar')} />
-          <MenuItem icon={<List size={20} />} label="کتابخانه من" active={pathname === '/dashboard/lists'} onClick={() => router.push('/dashboard/lists')} />
+          <MenuItem icon={<List size={20} />} label="سریال های من   " active={pathname === '/dashboard/lists'} onClick={() => router.push('/dashboard/lists')} />
           <MenuItem icon={<Sparkles size={20} className="text-purple-400" />} label="تراپیست هوشمند" active={pathname === '/dashboard/mood'} onClick={() => router.push('/dashboard/mood')} />
           <MenuItem icon={<User size={20} />} label="پروفایل" active={pathname === '/dashboard/profile'} onClick={() => router.push('/dashboard/profile')} />
         </nav>

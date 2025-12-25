@@ -60,7 +60,6 @@ body {
 /* app/globals.css */
 
 @layer base {
-  /* اجبار کردن پوینتر برای تمام دکمه‌ها و لینک‌ها */
   button, a, [role="button"] {
     cursor: pointer !important;
   }

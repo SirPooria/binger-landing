@@ -3,13 +3,13 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getShowDetails, getSeasonDetails, getImageUrl, getBackdropUrl, getSimilarShows, BASE_URL, API_KEY } from '@/lib/tmdbClient';
-import { supabase } from '@/lib/supabaseClient';
+// 👇 تغییر ۱: استفاده از کلاینت جدید
+import { createClient } from '@/lib/supabase';
 import { ArrowRight, Star, Loader2, Check, Plus, Share2, Play, Info, RotateCcw, ChevronDown, ChevronUp, BarChart2, Search, Users, Tag, CheckCircle2 } from 'lucide-react';
 import EpisodeModal from '../../components/EpisodeModal';
 import confetti from 'canvas-confetti'; 
 
 
-// --- SKELETON LOADER ---
 // --- SKELETON LOADER (MATCHING LAYOUT) ---
 const SkeletonPage = () => (
   <div className="min-h-screen bg-[#050505] animate-pulse pb-20 overflow-hidden">
@@ -18,18 +18,14 @@ const SkeletonPage = () => (
     <div className="relative w-full h-[65vh] md:h-[75vh] bg-white/5">
         <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent"></div>
         
-        {/* Content Positioned Bottom-Right (Like Real Page) */}
         <div className="absolute bottom-0 right-0 w-full md:w-2/3 p-6 md:p-12 flex flex-col items-start gap-4 pb-20">
-            {/* Badge */}
             <div className="w-24 h-6 bg-white/10 rounded-full"></div>
             
-            {/* Title */}
             <div className="space-y-2 w-full">
                 <div className="w-3/4 md:w-1/2 h-12 md:h-16 bg-white/10 rounded-xl"></div>
                 <div className="w-1/3 h-6 bg-white/5 rounded-lg"></div>
             </div>
             
-            {/* Buttons */}
             <div className="flex gap-3 mt-4 w-full md:w-auto">
                 <div className="w-32 h-12 bg-white/10 rounded-xl"></div>
                 <div className="w-32 h-12 bg-white/5 rounded-xl border border-white/5"></div>
@@ -75,6 +71,9 @@ const getGenreColor = (index: number) => {
 };
 
 export default function ShowDetailsPage() {
+  // 👇 تغییر ۲: ساخت نمونه کلاینت سوپابیس (با as any)
+  const supabase = createClient() as any;
+  
   const params = useParams();
   const router = useRouter();
   const showId = params.id as string;
@@ -165,7 +164,6 @@ export default function ShowDetailsPage() {
 
   // --- Fetching Logic ---
   const fetchPollData = async (currentUserId: string) => {
-      // 🔥 دریافت تمام رای‌های کاربر برای این سریال (برای چند انتخابی)
       const { data: myVotes } = await supabase.from('poll_votes').select('tag').eq('user_id', currentUserId).eq('show_id', showId);
       if (myVotes) {
           setUserVotes(myVotes.map((v: any) => v.tag));
@@ -183,7 +181,7 @@ export default function ShowDetailsPage() {
   const fetchBingerStats = async () => {
       const { data } = await supabase.from('show_ratings').select('rating').eq('show_id', showId);
       if (data && data.length > 0) {
-          const sum = data.reduce((acc, curr) => acc + curr.rating, 0);
+          const sum = data.reduce((acc: any, curr: any) => acc + curr.rating, 0);
           setBingerStats({ avg: sum / data.length, count: data.length });
       } else {
           setBingerStats({ avg: 0, count: 0 });
@@ -530,9 +528,6 @@ export default function ShowDetailsPage() {
             <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-transparent"></div>
         </div>
         
-        {/* Top bar removed as requested (Back button removed, Share moved) */}
-        {/* <div className="absolute top-0 w-full p-6 flex justify-between items-center z-20"> ... </div> */}
-
         <div className="absolute bottom-0 w-full p-6 md:p-12 flex flex-col md:flex-row gap-8 items-end z-10 pb-20">
             <div className="flex-1 space-y-4">
                 <div className="flex items-center gap-3">
@@ -568,7 +563,6 @@ export default function ShowDetailsPage() {
                         <span>{inWatchlist ? 'در لیست سریال های من' : 'افزودن به سریال های من'}</span>
                     </button>
                     
-                    {/* Seen Whole Show Button Logic */}
                     {progressPercent === 100 ? (
                         <span className="flex items-center gap-2 px-4 py-3 rounded-xl font-bold bg-green-500/20 text-green-400 border border-green-500/30 cursor-default select-none">
                              <CheckCircle2 size={18} />
@@ -584,7 +578,6 @@ export default function ShowDetailsPage() {
                         </button>
                     )}
 
-                    {/* Share Button Moved Here */}
                     <button onClick={() => setShowShareModal(true)} className="flex items-center gap-2 px-4 py-3 rounded-xl font-bold bg-white/10 hover:bg-white/20 text-[#ccff00] border border-white/10 transition-all active:scale-95">
                         <Share2 size={18} />
                     </button>
@@ -839,7 +832,7 @@ export default function ShowDetailsPage() {
                                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
                                                     <button 
                                                         onClick={(e) => { e.stopPropagation(); toggleWatched(ep.id); }}
-                                                        className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all active:scale-75 ${isWatched ? 'bg-[#ccff00] border-[#ccff00]' : 'border-gray-600 hover:border-white'}`}
+                                                        className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all active:scale-75 ${isWatched ? 'bg-[#ccff00] border-[#ccff00]' : 'border-gray-600 hover:border-white opacity-0 group-hover:opacity-100'}`}
                                                     >
                                                         {isWatched && <Check size={16} className="text-black" strokeWidth={3} />}
                                                     </button>
@@ -941,7 +934,7 @@ export default function ShowDetailsPage() {
                                                                   onClick={(e) => { e.stopPropagation(); toggleWatched(ep.id); }}
                                                                   className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all active:scale-90 ${isWatched ? 'bg-[#ccff00] border-[#ccff00]' : 'border-gray-600 hover:border-white opacity-0 group-hover:opacity-100'}`}
                                                               >
-                                                                      {isWatched && <Check size={16} className="text-black" />}
+                                                                  {isWatched && <Check size={16} className="text-black" />}
                                                               </button>
                                                           </div>
                                                       )

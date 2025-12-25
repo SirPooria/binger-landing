@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@/lib/supabase';
 import { getShowDetails, getBackdropUrl, getImageUrl } from '@/lib/tmdbClient';
 import { useRouter } from 'next/navigation';
 import { 
@@ -20,9 +20,10 @@ const ALL_ACHIEVEMENTS = [
     { id: 'binge_r', title: 'بینجر واقعی', icon: '👑', desc: '۵۰۰ اپیزود تماشا کردی.', threshold: 500, type: 'eps' },
     { id: 'famous', title: 'معروف', icon: '😎', desc: '۱۰ نفر فالوت کردن.', threshold: 10, type: 'followers' },
 ];
-
 export default function ProfilePage() {
+  const supabase = createClient() as any; 
   const router = useRouter();
+  
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   
@@ -51,7 +52,7 @@ export default function ProfilePage() {
       if (!user) { window.location.href = '/login'; return; }
       setUser(user);
 
-      // 1. Data Fetching (Watched)
+      // Data Fetching (Watched)
       const { data: watchedData } = await supabase.from('watched').select('show_id, created_at').eq('user_id', user.id);
       
       if (watchedData && watchedData.length > 0) {
@@ -61,12 +62,13 @@ export default function ProfilePage() {
         const showsDetailsMap: any = {};
         await Promise.all(uniqueShowIds.map(async (id) => {
             const d = await getShowDetails(String(id));
-            if (d) showsDetailsMap[id] = d;
+            if (d) showsDetailsMap[String(id)] = d;
         }));
 
         let totalMinutes = 0;
         watchedData.forEach((item: any) => {
-            const show = showsDetailsMap[item.show_id];
+            // 👇 اصلاح ۱: تبدیل به استرینگ برای رفع ارور
+            const show = showsDetailsMap[String(item.show_id)];
             const runtime = show?.episode_run_time?.length > 0 
                 ? (show.episode_run_time.reduce((a:number, b:number) => a + b, 0) / show.episode_run_time.length) 
                 : 45; 
@@ -82,13 +84,14 @@ export default function ProfilePage() {
 
         watchedData.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         const lastShowId = watchedData[0].show_id;
-        if (showsDetailsMap[lastShowId]) {
-            setCoverImage(getBackdropUrl(showsDetailsMap[lastShowId].backdrop_path));
+        if (showsDetailsMap[String(lastShowId)]) {
+            setCoverImage(getBackdropUrl(showsDetailsMap[String(lastShowId)].backdrop_path));
         }
 
         const recentUniqueIds = Array.from(new Set(watchedData.map((i:any) => i.show_id))).slice(0, 10);
         const recents = recentUniqueIds.map((id) => {
-            const d = showsDetailsMap[id];
+            // 👇 اصلاح ۲: تبدیل به استرینگ برای رفع ارور
+            const d = showsDetailsMap[String(id)];
             if (!d) return null;
 
             const totalEps = d.number_of_episodes || 1; 
@@ -117,47 +120,75 @@ export default function ProfilePage() {
     fetchProfileData();
   }, []);
 
-  const openListModal = async (type: 'followers' | 'following' | 'comments' | 'leaderboard') => {
+const openListModal = async (type: 'followers' | 'following' | 'comments' | 'leaderboard') => {
       setActiveModal(type);
       setModalLoading(true);
       setModalList([]);
 
       let data: any[] = [];
-      if (type === 'followers') {
-          const res = await supabase.from('follows').select('follower_id, follower_email').eq('following_id', user.id);
-          data = res.data?.map(d => ({ id: d.follower_id, title: d.follower_email.split('@')[0], subtitle: 'Follower' })) || [];
-      } else if (type === 'following') {
-          const res = await supabase.from('follows').select('following_id, following_email').eq('follower_id', user.id);
-          data = res.data?.map(d => ({ id: d.following_id, title: d.following_email.split('@')[0], subtitle: 'Following' })) || [];
-      } else if (type === 'comments') {
-          const res = await supabase.from('comments').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
-          if (res.data) {
-             const uniqueShowIds = Array.from(new Set(res.data.map((c: any) => c.show_id)));
-             const showsInfo = await Promise.all(uniqueShowIds.map(async (id) => {
-                 const details = await getShowDetails(String(id));
-                 return { id, name: details?.name || 'Unknown' };
-             }));
-             data = res.data.map((c:any) => ({
-                 title: showsInfo.find(s => s.id === c.show_id)?.name,
-                 subtitle: new Date(c.created_at).toLocaleDateString('fa-IR'),
-                 content: c.content
-             }));
-          }
-      } else if (type === 'leaderboard') {
-          if (leaderboardTab === 'global') {
-              // Mock Data + Current User
-              const globalMock = [
-                  { id: '1', title: 'KingBinger', score: 1250, isMe: false },
-                  { id: '2', title: 'Sara_Movie', score: 980, isMe: false },
-                  { id: '3', title: 'AliReza', score: 850, isMe: false },
-                  { id: user.id, title: user.email.split('@')[0], score: totalEpisodes, isMe: true }, 
-                  { id: '4', title: 'CinemaLover', score: 400, isMe: false },
-              ].sort((a,b) => b.score - a.score);
-              data = globalMock;
-          } else {
-              data = [{ id: user.id, title: user.email.split('@')[0], score: totalEpisodes, isMe: true }];
-          }
+
+      try {
+        if (type === 'followers') {
+            const res = await supabase.from('follows').select('follower_id, follower_email').eq('following_id', user.id);
+            data = res.data?.map((d: any) => ({ id: d.follower_id, title: d.follower_email?.split('@')[0] || 'User', subtitle: 'Follower' })) || [];
+        } else if (type === 'following') {
+            const res = await supabase.from('follows').select('following_id, following_email').eq('follower_id', user.id);
+            data = res.data?.map((d: any) => ({ id: d.following_id, title: d.following_email?.split('@')[0] || 'User', subtitle: 'Following' })) || [];
+        } else if (type === 'comments') {
+            const res = await supabase.from('comments').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+            if (res.data) {
+                 data = res.data.map((c:any) => ({
+                     title: 'کامنت',
+                     subtitle: new Date(c.created_at).toLocaleDateString('fa-IR'),
+                     content: c.content
+                 }));
+            }
+        } 
+        
+        else if (type === 'leaderboard') {
+            
+            if (leaderboardTab === 'global') {
+                const { data: globalData, error } = await supabase.rpc('get_global_leaderboard');
+                
+                if (error) console.error("Global Leaderboard Error:", error);
+
+                if (globalData) {
+                    data = globalData.map((u: any) => ({
+                        id: u.user_id,
+                        title: u.email ? u.email.split('@')[0] : 'کاربر ناشناس',
+                        score: u.score,
+                        isMe: u.user_id === user.id
+                    }));
+                }
+            } else {
+                const { data: following } = await supabase
+                    .from('follows')
+                    .select('following_id')
+                    .eq('follower_id', user.id);
+
+                const targetIds = following?.map((f: any) => f.following_id) || [];
+                targetIds.push(user.id);
+
+                const { data: friendsData, error } = await supabase.rpc('get_scores_for_users', {
+                    user_ids: targetIds
+                });
+
+                if (error) console.error("Friends Leaderboard Error:", error);
+
+                if (friendsData) {
+                    data = friendsData.map((u: any) => ({
+                        id: u.user_id,
+                        title: u.email ? u.email.split('@')[0] : 'کاربر ناشناس',
+                        score: u.score,
+                        isMe: u.user_id === user.id
+                    }));
+                }
+            }
+        }
+      } catch (err) {
+          console.error("Error fetching modal data:", err);
       }
+
       setModalList(data);
       setModalLoading(false);
   };

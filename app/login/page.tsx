@@ -1,11 +1,15 @@
 "use client";
 
 import React, { useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+// 👇 تغییر ۱: استفاده از کلاینت جدید
+import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { Loader2, LogIn } from 'lucide-react';
 
 export default function LoginPage() {
+  // 👇 تغییر ۲: ساخت نمونه کلاینت سوپابیس
+  const supabase = createClient();
+  
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,18 +31,23 @@ export default function LoginPage() {
 
       if (signInError) {
         // 2. اگر ورود ناموفق بود (شاید کاربر جدیده؟)، تلاش می‌کنیم ثبت‌نام کنیم (Sign Up)
-        // نکته: در اپ واقعی معمولا این دو تا جدا هستن، ولی برای MVP ترکیب کردیم که راحت باشه
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            // این متا دیتاها بعداً در جدول پروفایل استفاده می‌شوند
+            data: {
+              full_name: email.split('@')[0], 
+              avatar_url: '',
+            }
+          }
         });
 
         if (signUpError) {
           throw signUpError; // اگر ثبت‌نام هم نشد، ارور واقعی رو نشون بده
         } else {
           setMessage('ثبت‌نام انجام شد! در حال ورود...');
-          // بعد از ثبت نام موفق، هدایت به دشبورد
-           router.push('/onboarding');
+          router.push('/onboarding');
         }
       } else {
         // اگر ورود موفق بود

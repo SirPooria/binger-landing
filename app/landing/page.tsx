@@ -4,10 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 // 👇 آیکون User را اضافه کردم برای دکمه داشبورد
 import { Users, Eye, Sparkles, ArrowLeft, Loader2, CheckCircle, User } from 'lucide-react';
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
 
 export default function BingerLandingPage() {
+  const supabase = createClient() as any;
   // --- State های مربوط به لیست انتظار ---
   const [phone, setPhone] = useState("");
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');

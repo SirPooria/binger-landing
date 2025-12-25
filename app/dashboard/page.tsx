@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@/lib/supabase';
 import { 
   getTrendingShows, getImageUrl, getBackdropUrl, 
   getShowDetails, getIranianShows, getNewestIranianShows,
@@ -45,6 +45,7 @@ export default function Dashboard() {
 }
 
 function DashboardContent() {
+    const supabase = createClient() as any;
   const router = useRouter();
   
   const [loading, setLoading] = useState(true);
