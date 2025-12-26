@@ -3,33 +3,25 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Home, Search, List, User, LogOut, Calendar as CalIcon, X, Sparkles, Menu, Loader2, Star, Eye } from 'lucide-react';
-// 👇 تغییر ۱: استفاده از کلاینت جدید
 import { createClient } from '@/lib/supabase';
 import { searchShows, getImageUrl } from '@/lib/tmdbClient';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  // 👇 تغییر ۲: ساخت نمونه کلاینت سوپابیس
   const supabase = createClient();
-  
   const router = useRouter();
   const pathname = usePathname();
   
-  // --- States ---
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
-  
-  // --- Search States ---
   const [showSearchOverlay, setShowSearchOverlay] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  // --- Logout Logic ---
   const handleLogout = async () => {
     await supabase.auth.signOut();
     window.location.href = '/login';
   };
 
-  // --- Live Search Logic (Debounce) ---
   useEffect(() => {
       const delayDebounceFn = setTimeout(async () => {
           if (searchQuery.length > 1) {
@@ -45,7 +37,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return () => clearTimeout(delayDebounceFn);
   }, [searchQuery]);
 
-  // بستن منو وقتی صفحه عوض میشه
   useEffect(() => {
       setIsSidebarOpen(false);
       setShowSearchOverlay(false);
@@ -54,11 +45,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div dir="rtl" className="min-h-screen bg-[#050505] text-white font-['Vazirmatn'] flex flex-col relative overflow-x-hidden">
       
-      {/* 🔍 SEARCH OVERLAY (لایه جستجوی تمام صفحه) */}
       {showSearchOverlay && (
           <div className="fixed inset-0 z-[200] bg-[#050505]/95 backdrop-blur-xl p-6 animate-in fade-in duration-200 overflow-y-auto">
               <div className="max-w-4xl mx-auto">
-                  {/* Search Input Header */}
                   <div className="flex items-center gap-4 mb-8 sticky top-0 bg-[#050505]/95 p-4 rounded-2xl border border-white/10 z-10 shadow-2xl">
                       <Search className="text-[#ccff00]" />
                       <input 
@@ -72,7 +61,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       <button onClick={() => {setShowSearchOverlay(false); setSearchQuery(''); setSearchResults([]);}} className="bg-white/10 p-2 rounded-full hover:bg-white/20 transition-all cursor-pointer"><X /></button>
                   </div>
 
-                  {/* Results */}
                   {isSearching ? (
                       <div className="flex justify-center py-20"><Loader2 className="animate-spin text-[#ccff00]" size={40} /></div>
                   ) : searchResults.length > 0 ? (
@@ -103,7 +91,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
       )}
 
-      {/* 🔥 SIDEBAR DRAWER (منوی کشویی) */}
       <div 
         className={`fixed inset-0 bg-black/90 backdrop-blur-sm z-[150] transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
         onClick={() => setIsSidebarOpen(false)}
@@ -135,10 +122,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
 
-      {/* 🔥 HEADER (ثابت و شفاف) */}
       <header className="fixed top-0 left-0 right-0 z-[100] w-full px-4 py-4 md:px-8 md:py-6 flex items-center justify-between bg-gradient-to-b from-black/90 via-black/60 to-transparent transition-all h-24 pointer-events-none">
           
-          {/* دکمه منو + لوگو */}
           <div className="flex items-center gap-4 pointer-events-auto">
               <button 
                 onClick={() => setIsSidebarOpen(true)}
@@ -152,7 +137,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
           </div>
 
-          {/* دکمه جستجوی جدید (لایه بازشو) */}
           <div className="pointer-events-auto">
             <button 
                 onClick={() => setShowSearchOverlay(true)}
@@ -164,12 +148,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
       </header>
 
-      {/* --- PAGE CONTENT --- */}
       <main className="flex-1 w-full relative">
           {children}
       </main>
 
-      {/* --- BOTTOM NAV (MOBILE ONLY) --- */}
       <div className="md:hidden fixed bottom-0 w-full bg-[#0a0a0a]/90 backdrop-blur-xl border-t border-white/10 flex justify-around p-4 z-50 pb-6 safe-area-pb">
           <Home size={24} className={`cursor-pointer transition-colors ${pathname === '/dashboard' ? "text-[#ccff00]" : "text-gray-500"}`} onClick={() => router.push('/dashboard')} />
           <CalIcon size={24} className={`cursor-pointer transition-colors ${pathname === '/dashboard/calendar' ? "text-[#ccff00]" : "text-gray-500"}`} onClick={() => router.push('/dashboard/calendar')} />

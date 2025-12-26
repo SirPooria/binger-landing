@@ -193,7 +193,11 @@ function DashboardContent() {
                     <div className="flex items-center gap-2 mb-6">
                         <Sparkles size={24} className="text-[#ccff00]" />
                         <h2 className="text-lg md:text-2xl font-black text-white">
-                            چون <span className="text-[#ccff00] underline decoration-wavy underline-offset-4">{aiSourceShow}</span> رو دیدی:
+                            چون 
+                            <span className="text-[#ccff00] underline decoration-wavy underline-offset-4">
+                                {aiSourceShow}
+                            </span>
+                                رو دیدی:
                         </h2>
                     </div>
                     <CarouselSection items={aiRecs} watchlistIds={watchlistIds} router={router} onToggle={toggleWatchlist} />
