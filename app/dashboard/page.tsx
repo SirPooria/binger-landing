@@ -108,9 +108,8 @@ function DashboardContent() {
         ]);
 
         if (trend.length > 0) {
-            const topIranian = newIr.length > 0 ? [newIr[0]] : [];
-            const topGlobal = trend.slice(0, topIranian.length > 0 ? 4 : 5);
-            setHeroShows([...topIranian, ...topGlobal]);
+            // فقط ۵ تا از ترندهای جهانی رو جدا کن و ست کن
+            setHeroShows(trend.slice(0, 5));
         }
 
         const { data: ratings } = await supabase.from('show_ratings').select('show_id, rating');
