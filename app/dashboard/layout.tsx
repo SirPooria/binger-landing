@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-// 👇 تغییر 1: اضافه کردن ChevronRight
-import { Home, Search, List, User, LogOut, Calendar as CalIcon, X, Sparkles, Menu, Loader2, Star, Eye, ChevronRight } from 'lucide-react';
+import Link from 'next/link'; // ✅ اضافه شده برای لینک‌های نوبار
+import { Home, Search, List, User, LogOut, Calendar as CalIcon, X, Sparkles, Menu, Loader2, Star, ChevronRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { searchShows, getImageUrl } from '@/lib/tmdbClient';
 
@@ -18,7 +18,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  // 👇 تغییر 2: متغیر برای تشخیص صفحه اصلی
+  // تشخیص اینکه آیا در صفحه اصلی هستیم یا نه
   const isMainPage = pathname === '/dashboard';
 
   const handleLogout = async () => {
@@ -49,6 +49,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div dir="rtl" className="min-h-screen bg-[#050505] text-white font-['Vazirmatn'] flex flex-col relative overflow-x-hidden">
       
+      {/* --- SEARCH OVERLAY --- */}
       {showSearchOverlay && (
           <div className="fixed inset-0 z-[200] bg-[#050505]/95 backdrop-blur-xl p-6 animate-in fade-in duration-200 overflow-y-auto">
               <div className="max-w-4xl mx-auto">
@@ -95,11 +96,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
       )}
 
+      {/* --- DESKTOP SIDEBAR OVERLAY --- */}
       <div 
         className={`fixed inset-0 bg-black/90 backdrop-blur-sm z-[150] transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
         onClick={() => setIsSidebarOpen(false)}
       />
 
+      {/* --- SIDEBAR (Desktop Menu) --- */}
       <aside 
         className={`fixed top-0 right-0 h-full w-72 bg-[#0a0a0a] border-l border-white/10 z-[160] shadow-2xl transform transition-transform duration-300 ease-out flex flex-col py-6 px-4 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
@@ -125,25 +128,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-
+      {/* --- TOP HEADER --- */}
       <header className="fixed top-0 left-0 right-0 z-[100] w-full px-4 py-4 md:px-8 md:py-6 flex items-center justify-between bg-gradient-to-b from-black/90 via-black/60 to-transparent transition-all h-24 pointer-events-none">
           
           <div className="flex items-center gap-4 pointer-events-auto">
               
-              {/* 👇 تغییر 3: لاجیک دکمه‌های برگشت و منو */}
-              
-              {/* دکمه برگشت: فقط در موبایل (md:hidden) و زمانی که صفحه اصلی نیستیم (!isMainPage) */}
+              {/* منطق دکمه‌های موبایل: */}
+              {/* ۱. اگر صفحه اصلی نیستیم: دکمه برگشت */}
               {!isMainPage && (
                   <button 
                     onClick={() => router.back()}
                     className="md:hidden p-2.5 bg-black/40 hover:bg-white/10 backdrop-blur-md rounded-xl border border-white/10 transition-all active:scale-95 group shadow-lg cursor-pointer"
                   >
-                      {/* در حالت RTL، فلش راست حکم برگشت (Back) را دارد */}
+                      {/* آیکون ChevronRight در حالت RTL یعنی برگشت به عقب */}
                       <ChevronRight size={24} className="text-white group-hover:text-[#ccff00]" />
                   </button>
               )}
 
-              {/* دکمه منو: در دسکتاپ همیشه هست (md:block). در موبایل اگر صفحه اصلی نباشیم مخفی می‌شود */}
+              {/* ۲. دکمه منو: در موبایل اگر صفحه اصلی باشیم میاد. در دسکتاپ همیشه هست */}
               <button 
                 onClick={() => setIsSidebarOpen(true)}
                 className={`p-2.5 bg-black/40 hover:bg-white/10 backdrop-blur-md rounded-xl border border-white/10 transition-all active:scale-95 group shadow-lg cursor-pointer ${!isMainPage ? 'hidden md:block' : 'block'}`}
@@ -167,16 +169,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
       </header>
 
+      {/* --- MAIN CONTENT --- */}
       <main className="flex-1 w-full relative">
           {children}
       </main>
 
-      <div className="md:hidden fixed bottom-0 w-full bg-[#0a0a0a]/90 backdrop-blur-xl border-t border-white/10 flex justify-around p-4 z-50 pb-6 safe-area-pb">
-          <Home size={24} className={`cursor-pointer transition-colors ${pathname === '/dashboard' ? "text-[#ccff00]" : "text-gray-500"}`} onClick={() => router.push('/dashboard')} />
-          <CalIcon size={24} className={`cursor-pointer transition-colors ${pathname === '/dashboard/calendar' ? "text-[#ccff00]" : "text-gray-500"}`} onClick={() => router.push('/dashboard/calendar')} />
-          <List size={24} className={`cursor-pointer transition-colors ${pathname === '/dashboard/lists' ? "text-[#ccff00]" : "text-gray-500"}`} onClick={() => router.push('/dashboard/lists')} />
-          <Sparkles size={24} className={`cursor-pointer transition-colors ${pathname === '/dashboard/mood' ? "text-purple-400" : "text-gray-500"}`} onClick={() => router.push('/dashboard/mood')} />
-          <User size={24} className={`cursor-pointer transition-colors ${pathname === '/dashboard/profile' ? "text-[#ccff00]" : "text-gray-500"}`} onClick={() => router.push('/dashboard/profile')} />
+      {/* --- BOTTOM NAVIGATION (MOBILE) --- */}
+      {/* تغییرات مهم:
+          1. استفاده از z-[120] تا روی همه لایه‌های زیری باشه ولی زیر سرچ و منو
+          2. استفاده از کامپوننت Link برای ناوبری سریع و بدون باگ کلیک
+      */}
+      <div className="md:hidden fixed bottom-0 w-full bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/10 grid grid-cols-5 p-2 z-[120] pb-6 safe-area-pb">
+          <Link href="/dashboard" className={`flex flex-col items-center justify-center p-2 rounded-xl transition-colors ${pathname === '/dashboard' ? "text-[#ccff00]" : "text-gray-500 hover:text-gray-300"}`}>
+              <Home size={24} />
+          </Link>
+          <Link href="/dashboard/calendar" className={`flex flex-col items-center justify-center p-2 rounded-xl transition-colors ${pathname === '/dashboard/calendar' ? "text-[#ccff00]" : "text-gray-500 hover:text-gray-300"}`}>
+              <CalIcon size={24} />
+          </Link>
+          <Link href="/dashboard/lists" className={`flex flex-col items-center justify-center p-2 rounded-xl transition-colors ${pathname === '/dashboard/lists' ? "text-[#ccff00]" : "text-gray-500 hover:text-gray-300"}`}>
+              <List size={24} />
+          </Link>
+          <Link href="/dashboard/mood" className={`flex flex-col items-center justify-center p-2 rounded-xl transition-colors ${pathname === '/dashboard/mood' ? "text-purple-400" : "text-gray-500 hover:text-gray-300"}`}>
+              <Sparkles size={24} />
+          </Link>
+          <Link href="/dashboard/profile" className={`flex flex-col items-center justify-center p-2 rounded-xl transition-colors ${pathname === '/dashboard/profile' ? "text-[#ccff00]" : "text-gray-500 hover:text-gray-300"}`}>
+              <User size={24} />
+          </Link>
       </div>
 
     </div>
