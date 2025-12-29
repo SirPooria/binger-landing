@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Home, Search, List, User, LogOut, Calendar as CalIcon, X, Sparkles, Menu, Loader2, Star, Eye } from 'lucide-react';
+// 👇 تغییر 1: اضافه کردن ChevronRight
+import { Home, Search, List, User, LogOut, Calendar as CalIcon, X, Sparkles, Menu, Loader2, Star, Eye, ChevronRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { searchShows, getImageUrl } from '@/lib/tmdbClient';
 
@@ -16,6 +17,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+
+  // 👇 تغییر 2: متغیر برای تشخیص صفحه اصلی
+  const isMainPage = pathname === '/dashboard';
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -107,9 +111,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
         
         <nav className="flex-1 w-full space-y-2">
-          <MenuItem icon={<Home size={20} />} label="ویترین" active={pathname === '/dashboard'} onClick={() => router.push('/dashboard')} />
+          <MenuItem icon={<Home size={20} />} label="صفحه اصلی" active={pathname === '/dashboard'} onClick={() => router.push('/dashboard')} />
           <MenuItem icon={<CalIcon size={20} />} label="تقویم پخش" active={pathname === '/dashboard/calendar'} onClick={() => router.push('/dashboard/calendar')} />
-          <MenuItem icon={<List size={20} />} label="سریال های من   " active={pathname === '/dashboard/lists'} onClick={() => router.push('/dashboard/lists')} />
+          <MenuItem icon={<List size={20} />} label="سریال های من" active={pathname === '/dashboard/lists'} onClick={() => router.push('/dashboard/lists')} />
           <MenuItem icon={<Sparkles size={20} className="text-purple-400" />} label="تراپیست هوشمند" active={pathname === '/dashboard/mood'} onClick={() => router.push('/dashboard/mood')} />
           <MenuItem icon={<User size={20} />} label="پروفایل" active={pathname === '/dashboard/profile'} onClick={() => router.push('/dashboard/profile')} />
         </nav>
@@ -125,9 +129,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <header className="fixed top-0 left-0 right-0 z-[100] w-full px-4 py-4 md:px-8 md:py-6 flex items-center justify-between bg-gradient-to-b from-black/90 via-black/60 to-transparent transition-all h-24 pointer-events-none">
           
           <div className="flex items-center gap-4 pointer-events-auto">
+              
+              {/* 👇 تغییر 3: لاجیک دکمه‌های برگشت و منو */}
+              
+              {/* دکمه برگشت: فقط در موبایل (md:hidden) و زمانی که صفحه اصلی نیستیم (!isMainPage) */}
+              {!isMainPage && (
+                  <button 
+                    onClick={() => router.back()}
+                    className="md:hidden p-2.5 bg-black/40 hover:bg-white/10 backdrop-blur-md rounded-xl border border-white/10 transition-all active:scale-95 group shadow-lg cursor-pointer"
+                  >
+                      {/* در حالت RTL، فلش راست حکم برگشت (Back) را دارد */}
+                      <ChevronRight size={24} className="text-white group-hover:text-[#ccff00]" />
+                  </button>
+              )}
+
+              {/* دکمه منو: در دسکتاپ همیشه هست (md:block). در موبایل اگر صفحه اصلی نباشیم مخفی می‌شود */}
               <button 
                 onClick={() => setIsSidebarOpen(true)}
-                className="p-2.5 bg-black/40 hover:bg-white/10 backdrop-blur-md rounded-xl border border-white/10 transition-all active:scale-95 group shadow-lg cursor-pointer"
+                className={`p-2.5 bg-black/40 hover:bg-white/10 backdrop-blur-md rounded-xl border border-white/10 transition-all active:scale-95 group shadow-lg cursor-pointer ${!isMainPage ? 'hidden md:block' : 'block'}`}
               >
                   <Menu size={24} className="text-white group-hover:text-[#ccff00]" />
               </button>

@@ -6,12 +6,12 @@ import { createClient } from '@/lib/supabase';
 import { 
   getTrendingShows, getImageUrl, getBackdropUrl, 
   getShowDetails, getIranianShows, getNewestIranianShows,
-  getLatestAnime, getAsianDramas, getNewestGlobal, getRecommendations
-} from '@/lib/tmdbClient'; 
+  getNewestGlobal, getRecommendations
+} from '@/lib/tmdbClient';
 import { 
   AlertTriangle, Plus, Info, Check, Bookmark, 
-  Activity, ChevronLeft, ChevronRight, Twitter, Instagram, Github, Heart, Sparkles,
-  Trash2, ArrowLeft, Flame, Eye, Users, Star
+  Activity, ChevronLeft, ChevronRight, Twitter, Instagram, Sparkles,
+  Trash2, ArrowLeft, Flame, Star
 } from 'lucide-react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Autoplay, EffectFade } from 'swiper/modules';
@@ -23,11 +23,11 @@ import 'swiper/css/effect-fade';
 const DashboardSkeleton = () => (
   <div className="w-full min-h-screen bg-[#050505] p-6 space-y-10 animate-pulse pt-24">
      <div className="w-full h-[50vh] bg-white/5 rounded-3xl relative overflow-hidden" />
-     {[1, 2, 3].map((i) => (
+     {[1, 2].map((i) => (
          <div key={i} className="space-y-4">
              <div className="w-48 h-6 bg-white/10 rounded-lg"></div>
              <div className="flex gap-4 overflow-hidden">
-                 {[1, 2, 3, 4, 5, 6].map((j) => (
+               {[1, 2, 3, 4, 5].map((j) => (
                      <div key={j} className="w-40 h-60 bg-white/5 rounded-2xl shrink-0"></div>
                  ))}
              </div>
@@ -45,16 +45,15 @@ export default function Dashboard() {
 }
 
 function DashboardContent() {
-    const supabase = createClient() as any;
+  const supabase = createClient();
   const router = useRouter();
-  
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [watchlistIds, setWatchlistIds] = useState<Set<number>>(new Set());
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   
   const [heroShows, setHeroShows] = useState<any[]>([]); 
-  const [myFeed, setMyFeed] = useState<any[]>([]); 
+  const [myFeed, setMyFeed] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
   const [categories, setCategories] = useState<any>({});
 
@@ -66,23 +65,39 @@ function DashboardContent() {
     const initData = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) { window.location.href = '/login'; return; }
+        
+        // FIX: Better redirect
+        if (!user) { 
+            router.replace('/login'); 
+            return; 
+        }
         setUser(user);
 
         const { data: wList } = await supabase.from('watchlist').select('show_id').eq('user_id', user.id);
-        const { data: watched } = await supabase.from('watched').select('show_id').eq('user_id', user.id);
+        
+        // OPTIMIZATION: Limit the query to avoid fetching huge data
+        const { data: watched } = await supabase.from('watched')
+            .select('show_id')
+            .eq('user_id', user.id)
+            .limit(100); 
 
         const wIds = wList?.map((i: any) => i.show_id) || [];
         const wEdIds = watched?.map((i: any) => i.show_id) || [];
+        
+        // Combine distinct IDs
         const allUserShowIds = Array.from(new Set([...wIds, ...wEdIds]));
         setWatchlistIds(new Set(wIds));
 
+        // Logic for "Continue Watching" (My Feed)
         if (allUserShowIds.length > 0) {
-            const recentIds = allUserShowIds.reverse().slice(0, 20); 
+            // Take only last 10 for performance
+            const recentIds = allUserShowIds.reverse().slice(0, 10); 
+            
             const myShowsPromises = recentIds.map(id => getShowDetails(String(id)).catch(() => null));
             const myShowsRaw = await Promise.all(myShowsPromises);
             setMyFeed(myShowsRaw.filter(s => s !== null));
 
+            // Recommendation Logic
             const randomSeedId = allUserShowIds[Math.floor(Math.random() * allUserShowIds.length)];
             const [seedDetails, recs] = await Promise.all([
                 getShowDetails(String(randomSeedId)),
@@ -98,40 +113,29 @@ function DashboardContent() {
             try { return await fn(); } catch (e) { return fallback; }
         };
 
-        const [trend, anime, asian, global, popIr, newIr] = await Promise.all([
+        // OPTIMIZATION: Removed extra categories for MVP speed
+        const [trend, global, popIr, newIr] = await Promise.all([
             fetchSafely(getTrendingShows, []),
-            fetchSafely(getLatestAnime, []),
-            fetchSafely(getAsianDramas, []),
             fetchSafely(getNewestGlobal, []),
             fetchSafely(getIranianShows, []),        
             fetchSafely(getNewestIranianShows, [])    
         ]);
 
         if (trend.length > 0) {
-            // فقط ۵ تا از ترندهای جهانی رو جدا کن و ست کن
-            setHeroShows(trend.slice(0, 5));
+            const topIranian = newIr.length > 0 ? [newIr[0]] : [];
+            const topGlobal = trend.slice(0, topIranian.length > 0 ? 4 : 5);
+            setHeroShows([...topIranian, ...topGlobal]);
         }
 
-        const { data: ratings } = await supabase.from('show_ratings').select('show_id, rating');
-        const ratingMap: any = {};
-        ratings?.forEach((r: any) => {
-            if (!ratingMap[r.show_id]) ratingMap[r.show_id] = { sum: 0, count: 0 };
-            ratingMap[r.show_id].sum += r.rating;
-            ratingMap[r.show_id].count += 1;
-        });
-        const topBingerIds = Object.keys(ratingMap).sort((a, b) => (ratingMap[b].sum/ratingMap[b].count) - (ratingMap[a].sum/ratingMap[a].count)).slice(0, 10);
-        const topBingerShows = await Promise.all(topBingerIds.map(async id => { try { return await getShowDetails(id); } catch { return null; } }));
+        // Removed heavy "Top Binger" calculation loop for MVP
 
         setCategories({
             newIranian: newIr || [],
             popularIranian: popIr || [],
             trending: trend ? trend.slice(0, 10) : [],
             newGlobal: global || [],
-            anime: anime || [],
-            asian: asian || [],
-            topBinger: topBingerShows.filter(s => s)
         });
-        
+
       } catch (err: any) {
           console.error(err);
           setErrorMsg("خطا در بارگذاری.");
@@ -155,7 +159,7 @@ function DashboardContent() {
       
       if (user) {
           if (isAdded) await supabase.from('watchlist').delete().eq('user_id', user.id).eq('show_id', showId);
-          else await supabase.from('watchlist').insert([{ user_id: user.id, show_id: showId }]);
+          else await supabase.from('watchlist').insert([{ user_id: user.id, show_id: showId }] as any);
       }
   };
 
@@ -192,11 +196,7 @@ function DashboardContent() {
                     <div className="flex items-center gap-2 mb-6">
                         <Sparkles size={24} className="text-[#ccff00]" />
                         <h2 className="text-lg md:text-2xl font-black text-white">
-                            چون 
-                            <span className="text-[#ccff00] underline decoration-wavy underline-offset-4">
-                                {aiSourceShow}
-                            </span>
-                                رو دیدی:
+                             چون <span className="text-[#ccff00] underline decoration-wavy underline-offset-4">{aiSourceShow}</span> رو دیدی:
                         </h2>
                     </div>
                     <CarouselSection items={aiRecs} watchlistIds={watchlistIds} router={router} onToggle={toggleWatchlist} />
@@ -215,10 +215,9 @@ function DashboardContent() {
                 <CarouselSection items={categories.trending} watchlistIds={watchlistIds} router={router} onToggle={toggleWatchlist} categoryId="trending" />
             </div>
 
-            {categories.topBinger.length > 0 && <CarouselSection title="برترین‌های بینجر (امتیاز کاربران)" items={categories.topBinger} watchlistIds={watchlistIds} router={router} onToggle={toggleWatchlist} categoryId="top" />}
             <CarouselSection title="جدیدترین‌های دنیا" items={categories.newGlobal} watchlistIds={watchlistIds} router={router} onToggle={toggleWatchlist} categoryId="new-global" />
-            <CarouselSection title="انیمه" items={categories.anime} watchlistIds={watchlistIds} router={router} onToggle={toggleWatchlist} categoryId="anime" />
-            <CarouselSection title="آسیای شرقی" items={categories.asian} watchlistIds={watchlistIds} router={router} onToggle={toggleWatchlist} categoryId="asian" />
+            
+            {/* Removed Anime/Asian for MVP Speed */}
         </div>
 
         <DashboardFooter />
@@ -230,7 +229,6 @@ function DashboardContent() {
 
 function HeroSlider({ shows, router, watchlistIds, onToggle }: any) {
     if (shows.length === 0) return null;
-
     return (
         <div className="relative w-full h-[60vh] md:h-[75vh] group mb-8">
             <Swiper
@@ -262,12 +260,12 @@ function HeroSlider({ shows, router, watchlistIds, onToggle }: any) {
                             <div className="absolute bottom-0 right-0 w-full md:w-2/3 p-6 md:p-16 flex flex-col items-start gap-3 md:gap-4 pb-16 md:pb-24 z-10" dir="rtl">
                                 <div className="flex items-center gap-2">
                                     <span className="bg-[#ccff00] text-black text-[10px] font-black px-2 py-0.5 rounded uppercase shadow-lg">TOP #{index + 1}</span>
-                                    {show.origin_country?.includes('IR') && <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-lg">ایران 🇮🇷</span>}
+                                     {show.origin_country?.includes('IR') && <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-lg">ایران 🇮🇷</span>}
                                 </div>
                                 
                                 <div>
                                     <h1 className="text-3xl md:text-6xl font-black text-white drop-shadow-2xl leading-tight text-right">{show.name}</h1>
-                                    {hasPersianName && <h2 className="text-sm md:text-2xl text-gray-300 font-bold mt-1 text-right ltr opacity-80 font-sans">{show.original_name}</h2>}
+                                     {hasPersianName && <h2 className="text-sm md:text-2xl text-gray-300 font-bold mt-1 text-right ltr opacity-80 font-sans">{show.original_name}</h2>}
                                 </div>
                                 
                                 <p className={`text-gray-200 text-xs md:text-sm leading-relaxed max-w-xl line-clamp-2 md:line-clamp-3 text-justify ${isPersianOverview ? 'text-right dir-rtl' : 'text-left dir-ltr opacity-90'}`}>
@@ -292,7 +290,7 @@ function HeroSlider({ shows, router, watchlistIds, onToggle }: any) {
                                         ) : (
                                             <> <Plus size={20} /> <span className="hidden md:inline">افزودن به لیست</span><span className="md:hidden">لیست</span> </>
                                         )}
-                                    </button>
+                                     </button>
                                 </div>
                             </div>
                         </SwiperSlide>
@@ -310,7 +308,7 @@ function HeroSlider({ shows, router, watchlistIds, onToggle }: any) {
     );
 }
 
-// 2. CAROUSEL SECTION (Z-Index Fixed)
+// 2. CAROUSEL SECTION
 function CarouselSection({ title, items, router, watchlistIds, onToggle, categoryId }: any) {
     const rowRef = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
@@ -334,7 +332,6 @@ function CarouselSection({ title, items, router, watchlistIds, onToggle, categor
         const walk = (x - startX) * 2;
         rowRef.current.scrollLeft = scrollLeft - walk;
     };
-
     return (
         <div className="space-y-4 group/section relative z-0">
             {title && (
@@ -355,12 +352,11 @@ function CarouselSection({ title, items, router, watchlistIds, onToggle, categor
             <div className="relative group">
                 {!isDragging && (
                     <>
-                        {/* دکمه‌های اسلایدر رو آوردم بیرون با z-index بالا تا روی کارت نیفتن */}
                         <button 
                             onClick={() => rowRef.current?.scrollBy({ left: -300, behavior: 'smooth' })}
                             className="absolute -left-6 top-1/2 -translate-y-1/2 bg-black/80 hover:bg-[#ccff00] hover:text-black text-white p-3 rounded-full border border-white/10 z-50 hidden md:flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-xl active:scale-90"
                         >
-                            <ChevronLeft size={20} />
+                             <ChevronLeft size={20} />
                         </button>
                         <button 
                             onClick={() => rowRef.current?.scrollBy({ left: 300, behavior: 'smooth' })}
@@ -395,17 +391,15 @@ function CarouselSection({ title, items, router, watchlistIds, onToggle, categor
     );
 }
 
-// 3. SHOW CARD (Fixed Image & Badge)
+// 3. SHOW CARD (CLEAN VERSION - NO FAKE DATA)
 function ShowCard({ show, isAdded, onClick, onToggle }: any) {
-    const randomViews = Math.floor(Math.random() * (5000 - 500) + 500); 
-    const randomFriends = Math.floor(Math.random() * 5); 
-
     return (
         <div onClick={onClick} className="group relative aspect-[2/3] bg-[#1a1a1a] rounded-2xl overflow-hidden cursor-pointer border border-white/5 hover:border-[#ccff00]/50 transition-all duration-500 hover:scale-105 hover:shadow-[0_0_30px_rgba(204,255,0,0.15)] hover:z-30">
             <img 
                 src={getImageUrl(show.poster_path)} 
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
                 loading="lazy"
+                alt={show.name}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-[#000000]/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity"></div>
             
@@ -413,24 +407,16 @@ function ShowCard({ show, isAdded, onClick, onToggle }: any) {
                 {isAdded ? <Bookmark size={14} fill="black" /> : <Plus size={14} />}
             </button>
             
-            {randomFriends > 0 && (
-                <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-full flex items-center gap-1 z-10 border border-white/10">
-                    <Users size={10} className="text-pink-500" />
-                    <span className="text-[8px] text-white font-bold">{randomFriends} دوست</span>
-                </div>
-            )}
-
             <div className="absolute bottom-0 p-3 w-full translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
                 <h3 className="text-xs md:text-sm font-bold text-white line-clamp-1 text-right drop-shadow-md">{show.name}</h3>
                 
-                <div className="flex justify-between items-center mt-2 opacity-80 group-hover:opacity-100 transition-opacity">
-                    <span className="text-[9px] text-gray-400 flex items-center gap-1">
-                        <Eye size={10} /> {(randomViews/1000).toFixed(1)}k
-                    </span>
-                    <span className="text-[10px] text-[#ccff00] flex items-center gap-0.5 bg-black/50 px-1.5 py-0.5 rounded border border-white/20 font-bold">
-                        <Star size={8} fill="#ccff00" /> {show.vote_average?.toFixed(1)}
-                    </span>
-                </div>
+                {show.vote_average > 0 && (
+                    <div className="flex justify-end items-center mt-2 opacity-80 group-hover:opacity-100 transition-opacity">
+                        <span className="text-[10px] text-[#ccff00] flex items-center gap-0.5 bg-black/50 px-1.5 py-0.5 rounded border border-white/20 font-bold">
+                            <Star size={8} fill="#ccff00" /> {show.vote_average?.toFixed(1)}
+                        </span>
+                    </div>
+                )}
             </div>
         </div>
     );
