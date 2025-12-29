@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader2, Zap, X, Cpu, Star, HelpCircle, Sparkles } from 'lucide-react';
+import { Send, Bot, User, Loader2, Zap, X, Cpu, Star, HelpCircle } from 'lucide-react';
 import { getImageUrl, getShowsByGenre, searchShows, getSimilarShows } from '@/lib/tmdbClient'; 
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase'; // برای لاگ کردن
+import { createClient } from '@/lib/supabase';
 
-// --- 1. دیکشنری احساسات (کامل + انیمه) ---
 const MOOD_MAP: Record<string, number> = {
   // ⛩️ انیمه (16)
   'انیمه': 16, 'انیمیشن': 16, 'کارتون': 16, 'اوتاکو': 16, 'مانگا': 16, 
@@ -55,18 +54,16 @@ const MOOD_MAP: Record<string, number> = {
   'راز بقا': 99, 'طبیعت': 99, 'تاریخی': 99, 'بیوگرافی': 99
 };
 
-// --- 2. تم‌های رنگی پویا ---
 const THEMES: any = {
     default: "from-purple-600/10 to-cyan-600/10",
-    18: "from-blue-900/20 to-gray-900/20", // درام: سرد و تیره
-    35: "from-yellow-400/10 to-orange-500/10", // کمدی: گرم و شاد
-    28: "from-red-600/10 to-orange-600/10", // اکشن: قرمز و پرانرژی
-    27: "from-red-900/20 to-black", // ترسناک: خیلی تیره و قرمز
-    10749: "from-pink-500/10 to-rose-500/10", // عاشقانه: صورتی
-    16: "from-indigo-500/10 to-purple-500/10", // انیمه: فانتزی
+    18: "from-blue-900/20 to-gray-900/20",
+    35: "from-yellow-400/10 to-orange-500/10",
+    28: "from-red-600/10 to-orange-600/10",
+    27: "from-red-900/20 to-black",
+    10749: "from-pink-500/10 to-rose-500/10",
+    16: "from-indigo-500/10 to-purple-500/10",
 };
 
-// --- 3. جملات رندوم ربات ---
 const BOT_VARIANTS: any = {
     fallback: [
         "دقیق نگرفتم چی میخوای، ولی اینا الان خیلی ترندن:",
@@ -81,7 +78,6 @@ const BOT_VARIANTS: any = {
     ]
 };
 
-// --- 4. دکمه‌های پیشنهاد سریع (Chips) ---
 const QUICK_CHIPS = [
     { label: "😂 میخوام بترکم", text: "یه سریال کمدی و خنده دار میخوام" },
     { label: "😭 دلم گرفته", text: "خیلی ناراحتم و دلم گرفته" },
@@ -122,13 +118,12 @@ export default function MoodChatPage() {
     const textToSend = textOverride || input;
     if (!textToSend.trim()) return;
 
-    // ثبت پیام کاربر
     const userMsg = { role: 'user', text: textToSend };
     setMessages(prev => [...prev, userMsg]);
     setInput("");
     setLoading(true);
 
-    // --- 1. تشخیص درخواست "شبیه به ..." (Similarity Check) ---
+    // --- 1. Similarity Check ---
     const similarityTrigger = SIMILARITY_TRIGGERS.find(t => textToSend.includes(t));
     
     if (similarityTrigger) {
@@ -156,7 +151,7 @@ export default function MoodChatPage() {
         }
     }
 
-    // --- 2. تشخیص هوشمند ژانر (Mood/Genre Check) ---
+    // --- 2. Mood/Genre Check ---
     let selectedGenreId = null;
 
     for (const [key, id] of Object.entries(MOOD_MAP)) {
@@ -170,25 +165,34 @@ export default function MoodChatPage() {
         let shows = [];
         let botText = "";
         
+        // 🔥 رندوم سازی صفحه (بین 1 تا 10)
+        const randomPage = Math.floor(Math.random() * 10) + 1;
+
         if (selectedGenreId) {
-            // ✅ موفقیت
-            shows = await getShowsByGenre(selectedGenreId);
-            botText = getRandomResponse('success');
+            // دریافت با صفحه رندوم
+            shows = await getShowsByGenre(selectedGenreId, randomPage);
             
-            // تغییر تم صفحه
-            const newTheme = THEMES[selectedGenreId] || THEMES.default;
-            setCurrentTheme(newTheme);
+            // 🔥 چک کردن اینکه آیا واقعا سریالی پیدا شد؟
+            if (shows && shows.length > 0) {
+                 // شافل کردن نتایج برای تنوع بیشتر
+                 shows = shows.sort(() => 0.5 - Math.random());
+                 
+                 botText = getRandomResponse('success');
+                 const newTheme = THEMES[selectedGenreId] || THEMES.default;
+                 setCurrentTheme(newTheme);
+            } else {
+                 // اگه ژانر پیدا شد ولی لیست خالی بود (خیلی نادره ولی ممکنه)
+                 shows = await getShowsByGenre(null, 1);
+                 botText = "متوجه شدم چی میخوای ولی متاسفانه سرور یاری نکرد. اینا رو فعلاً ببین:";
+            }
 
         } else {
-            // ❌ شکست (Fallback)
-            shows = await getShowsByGenre(null); 
+            shows = await getShowsByGenre(null, randomPage); // ترندهای رندوم
             botText = getRandomResponse('fallback');
             setCurrentTheme(THEMES.default);
-
-            // لاگ کردن شکست در دیتابیس (بدون کرش کردن اپ)
             try {
-    await supabase.from('ai_logs').insert([{ query: textToSend, status: 'failed' }] as any);
-            } catch (e) { /* جدولش هنوز نیست، بیخیال */ }
+                await supabase.from('ai_logs').insert([{ query: textToSend, status: 'failed' }] as any);
+            } catch (e) { }
         }
 
         const botMsg = { role: 'bot', text: botText, suggestions: shows.slice(0, 10) };
@@ -200,10 +204,10 @@ export default function MoodChatPage() {
   return (
     <div dir="rtl" className="h-screen w-full bg-[#050505] text-white font-['Vazirmatn'] flex flex-col pb-20 md:pb-0 relative overflow-hidden pt-24 transition-colors duration-1000">
       
-      {/* Dynamic Background Decor */}
+      {/* Dynamic Background */}
       <div className={`absolute top-0 right-0 w-full h-full bg-gradient-to-br ${currentTheme} blur-[100px] opacity-40 pointer-events-none transition-all duration-1000`}></div>
 
-      {/* Help Modal */}
+      {/* MODAL */}
       {showHelpModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-in fade-in duration-300">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowHelpModal(false)}></div>
@@ -215,10 +219,25 @@ export default function MoodChatPage() {
                     </div>
                     <h3 className="text-xl font-black text-white mb-2">راهنمای هوش مصنوعی</h3>
                 </div>
-                <div className="space-y-4 text-right text-xs text-gray-300 leading-6">
-                     <p>• بگو چه حسی داری (غمگین، شاد، اکشن...)</p>
-                     <p>• بگو "شبیه بریکینگ بد" تا مثل اون رو پیدا کنم.</p>
-                     <p>• بگو "انیمه" تا دنیای انیمیشن رو بیارم.</p>
+                <div className="space-y-6 text-right">
+                    <div>
+                        <h4 className="font-bold text-[#ccff00] mb-2 text-sm flex items-center gap-2"><Zap size={16}/> بر اساس حس و حال</h4>
+                        <p className="text-gray-300 text-xs leading-6 bg-white/5 p-3 rounded-xl border border-white/5">
+                            کافیه بگی الان چه حسی داری. مثلاً:
+                            <br/>• "خیلی <span className="text-white font-bold">ناراحتم</span> و دلم گرفته"
+                            <br/>• "یه چیز <span className="text-white font-bold">خنده‌دار</span> میخوام که بترکم"
+                            <br/>• "دلم هیجان و <span className="text-white font-bold">اکشن</span> میخواد"
+                        </p>
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-purple-400 mb-2 text-sm flex items-center gap-2"><Star size={16}/> بر اساس شباهت</h4>
+                        <p className="text-gray-300 text-xs leading-6 bg-white/5 p-3 rounded-xl border border-white/5">
+                            اسم سریالی که دوست داری رو بگو تا شبیهش رو پیدا کنم:
+                            <br/>• "یه سریال <span className="text-white font-bold">شبیه بریکینگ بد</span> معرفی کن"
+                            <br/>• "چیزی تو مایه‌های <span className="text-white font-bold">فرندز</span> داری؟"
+                        </p>
+                    </div>
+                    <p className="text-center text-[10px] text-gray-500 pt-4 border-t border-white/5">یادت باشه من هنوز در مرحله BETA هستم و دارم یاد می‌گیرم! 🤖</p>
                 </div>
             </div>
         </div>
@@ -276,10 +295,8 @@ export default function MoodChatPage() {
           )}
       </div>
 
-      {/* INPUT AREA + QUICK CHIPS */}
+      {/* INPUT + CHIPS */}
       <div className="bg-[#0a0a0a]/90 border-t border-white/10 backdrop-blur-lg z-20 flex flex-col gap-2 pb-2">
-          
-          {/* Quick Chips Scroll */}
           <div className="overflow-x-auto no-scrollbar py-2 px-4">
                <div className="flex gap-2 w-max">
                    {QUICK_CHIPS.map((chip, idx) => (
@@ -294,7 +311,6 @@ export default function MoodChatPage() {
                    ))}
                </div>
           </div>
-
           <div className="relative flex items-center group px-4 pb-2">
               <input 
                 value={input}

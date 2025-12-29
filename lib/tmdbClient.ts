@@ -166,16 +166,23 @@ export const getShowReviews = async (id: string) => {
   } catch (error) { console.error("Error fetching reviews:", error); return []; }
 };
 
-export const getShowsByGenre = async (genreId: number | null) => {
+// در فایل lib/tmdbClient.ts
+
+// به ورودی تابع، (page = 1) رو اضافه کن
+export const getShowsByGenre = async (genreId: number | null, page: number = 1) => {
   try {
     const url = genreId 
-      ? `${BASE_URL}/discover/tv?api_key=${API_KEY}&with_genres=${genreId}&sort_by=popularity.desc&page=1&include_null_first_air_dates=false`
-      : `${BASE_URL}/trending/tv/week?api_key=${API_KEY}`;
+      // اینجا &page=${page} رو به ته آدرس اضافه کن
+      ? `${BASE_URL}/discover/tv?api_key=${API_KEY}&with_genres=${genreId}&sort_by=popularity.desc&page=${page}`
+      : `${BASE_URL}/trending/tv/week?api_key=${API_KEY}&page=${page}`; // برای ترندها هم بذار
+
     const res = await fetch(url);
-    if (!res.ok) { console.error(`TMDB Error: ${res.status}`); return []; }
     const data = await res.json();
     return data.results || [];
-  } catch (error) { console.error("AI Fetch Error:", error); return []; }
+  } catch (error) {
+    console.error("Error getting shows by genre:", error);
+    return [];
+  }
 };
 
 export const getRecommendations = async (showId: number) => {
