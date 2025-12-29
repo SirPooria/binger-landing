@@ -8,7 +8,7 @@ import { Check, Loader2, ArrowLeft, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 export default function Onboarding() {
-  const supabase = createClient() as any;
+  const supabase = createClient();
   const router = useRouter();
   
   const [user, setUser] = useState<any>(null);
@@ -59,12 +59,17 @@ export default function Onboarding() {
         const newShows = await getPopularShows(page);
 
         setShows(prevShows => {
-          // ترکیب لیست قبلی با لیست جدید و حذف تکراری‌ها
           const combined = [...prevShows, ...newShows];
-          const uniqueShows = combined.filter((show, index, self) => 
-            index === self.findIndex((t) => t.id === show.id)
-          );
-          return uniqueShows;
+          
+          // --- تغییر: استفاده از Map برای حذف تکراری‌ها (سریع‌تر از روش قبلی) ---
+          // این روش باعث می‌شود اگر کاربر خیلی سریع اسکرول کرد، سریال تکراری نبیند
+          const uniqueShowsMap = new Map();
+          combined.forEach(show => {
+             if (!uniqueShowsMap.has(show.id)) {
+                 uniqueShowsMap.set(show.id, show);
+             }
+          });
+          return Array.from(uniqueShowsMap.values());
         });
 
         // اگر دیتایی نیامد یعنی به ته لیست API رسیدیم
@@ -87,33 +92,49 @@ export default function Onboarding() {
     else next.add(id);
     setSelectedIds(next);
   };
+
   const handleFinish = async () => {
     if (selectedIds.size === 0) return;
     setSubmitting(true);
 
     try {
+        // ۱. آماده‌سازی رکوردها برای دیتابیس
         const records = Array.from(selectedIds).map(id => ({
             user_id: user.id,
             show_id: id
         }));
         
-        // ذخیره در دیتابیس با بررسی خطا
-        const { error } = await supabase
+        // ۲. ذخیره سریال‌ها در جدول watchlist
+        const { error: dbError } = await supabase
             .from('watchlist')
-            .upsert(records, { onConflict: 'user_id, show_id' });
+            .upsert(records as any, { onConflict: 'user_id, show_id' });
 
-        if (error) throw error;
+        if (dbError) throw dbError;
 
-        // موفقیت‌آمیز بود:
+        // ۳. --- تغییر مهم: آپدیت کردن متادیتای کاربر ---
+        // این باعث می‌شود میدلور بدون زدن کوئری اضافه بفهمد کاربر آنبورد شده
+        const { error: authError } = await supabase.auth.updateUser({
+            data: { onboarding_complete: true }
+        });
+
+        if (authError) throw authError;
+
+        // ۴. رفرش کردن سشن برای اینکه تغییرات متادیتا اعمال شود
+        await supabase.auth.refreshSession();
+
+        // ۵. انیمیشن موفقیت
         confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+        
         setTimeout(() => {
             router.replace('/dashboard');
+            // رفرش برای اطمینان از اعمال کوکی‌های جدید
+            router.refresh();
         }, 1500);
 
     } catch (error: any) {
-        console.error("Error saving watchlist:", error);
+        console.error("Error saving data:", error);
         alert("خطا در ذخیره اطلاعات: " + (error.message || "مشکل ناشناخته"));
-        setSubmitting(false); // توقف چرخش دکمه
+        setSubmitting(false);
     }
   };
 
@@ -136,17 +157,17 @@ export default function Onboarding() {
           {shows.map((show, index) => {
               const isSelected = selectedIds.has(show.id);
               
-              // بررسی اینکه آیا این آخرین آیتم است؟ اگر بله، ref را به آن متصل می‌کنیم
+              // بررسی اینکه آیا این آخرین آیتم است؟
               const isLastElement = shows.length === index + 1;
 
               return (
                   <div 
                     ref={isLastElement ? lastShowElementRef : null}
-                    key={`${show.id}-${index}`} // ایندکس اضافه شد تا از خطای تکراری احتمالی جلوگیری شود
+                    key={`${show.id}-${index}`} 
                     onClick={() => toggleSelect(show.id)}
                     className={`relative aspect-[2/3] rounded-2xl overflow-hidden cursor-pointer group transition-all duration-300 animate-in fade-in zoom-in-95 ${isSelected ? 'ring-4 ring-[#ccff00] scale-95' : 'hover:scale-105'}`}
                   >
-                      <img src={getImageUrl(show.poster_path)} className={`w-full h-full object-cover transition-all ${isSelected ? 'opacity-40 grayscale' : ''}`} loading="lazy" />
+                      <img src={getImageUrl(show.poster_path)} className={`w-full h-full object-cover transition-all ${isSelected ? 'opacity-40 grayscale' : ''}`} loading="lazy" alt={show.name} />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-60"></div>
                       
                       {/* Checkmark Overlay */}
