@@ -1,5 +1,6 @@
-import { apiGet, apiPost, apiDelete } from './api';
-import type { Profile } from '@binger/shared';
+import { apiGet, apiPost, apiDelete, apiPatch } from './api';
+import type { Profile, AuthUser } from '@binger/shared';
+import { uploadImageAsync } from './upload';
 
 export interface ProfileStats {
   profile: Profile | null;
@@ -12,6 +13,23 @@ export interface ProfileStats {
 
 export async function fetchProfileStats(userId: string): Promise<ProfileStats> {
   return apiGet<ProfileStats>(`/profiles/${userId}/stats`);
+}
+
+export async function updateProfile(input: {
+  full_name?: string;
+  username?: string;
+  bio?: string;
+  avatar_url?: string;
+}): Promise<Profile> {
+  return apiPatch<Profile>('/profiles/me', input);
+}
+
+export async function uploadAvatar(localUri: string): Promise<string> {
+  return uploadImageAsync(localUri);
+}
+
+export async function refreshAuthUser(): Promise<AuthUser> {
+  return apiGet<AuthUser>('/auth/me');
 }
 
 export async function isFollowing(_followerId: string, followingId: string): Promise<boolean> {

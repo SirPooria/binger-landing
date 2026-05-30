@@ -7,10 +7,12 @@ WORKDIR /workspace
 # Monorepo workspace install (mobile depends on @binger/shared).
 COPY package.json package-lock.json ./
 COPY packages/shared packages/shared
-COPY apps/api/package.json apps/api/package.json
 COPY apps/mobile apps/mobile
 
-RUN npm install -w apps/mobile --include-workspace-root=false
+# Skip postinstall during ci (stale hoisted @esbuild 0.21.x breaks esbuild 0.28 install.js), then rebuild.
+RUN npm ci -w @binger/mobile --include-workspace-root=false --ignore-scripts \
+  && rm -rf node_modules/@esbuild \
+  && npm rebuild esbuild
 
 WORKDIR /workspace/apps/mobile
 

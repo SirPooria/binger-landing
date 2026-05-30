@@ -77,17 +77,18 @@ export async function findOrCreateGoogle(profile: {
 }
 
 export async function toAuthUser(user: DbUser): Promise<AuthUser> {
-  const { rows } = await query<{ username: string | null }>(
-    'SELECT username FROM profiles WHERE id = $1',
+  const { rows } = await query<{ username: string | null; full_name: string | null; avatar_url: string | null }>(
+    'SELECT username, full_name, avatar_url FROM profiles WHERE id = $1',
     [user.id]
   );
+  const profile = rows[0];
   return {
     id: user.id,
     email: user.email,
     onboarding_complete: user.onboarding_complete,
-    full_name: user.full_name,
-    avatar_url: user.avatar_url,
-    username: rows[0]?.username ?? null,
+    full_name: profile?.full_name ?? user.full_name,
+    avatar_url: profile?.avatar_url ?? user.avatar_url,
+    username: profile?.username ?? null,
   };
 }
 

@@ -87,4 +87,43 @@ describe('data / CRUD routes', () => {
     const { rows } = await query('SELECT xp FROM profiles WHERE id = $1', [user.id]);
     expect(Number(rows[0].xp)).toBeGreaterThan(0);
   });
+
+  it('patches the current user profile', async () => {
+    const { auth, user } = await makeUser();
+    const res = await request(app)
+      .patch('/api/v1/profiles/me')
+      .set(auth)
+      .send({ full_name: 'Test User', bio: 'Hello bio', username: `user_${user.id.slice(0, 8)}` });
+    expect(res.status).toBe(200);
+    expect(res.body.data.full_name).toBe('Test User');
+    expect(res.body.data.bio).toBe('Hello bio');
+  });
+
+  it('posts a nested comment reply', async () => {
+    const { auth } = await makeUser();
+    const parent = await request(app)
+      .post('/api/v1/comments')
+      .set(auth)
+      .send({ show_id: 1396, content: 'parent comment' });
+    expect(parent.status).toBe(200);
+
+    const parentId = Number(parent.body.data.id);
+    const reply = await request(app)
+      .post('/api/v1/comments')
+      .set(auth)
+      .send({ show_id: 1396, content: 'reply text', parent_id: parentId });
+    expect(reply.status).toBe(200);
+    expect(Number(reply.body.data.parent_id)).toBe(parentId);
+
+    const list = await request(app).get('/api/v1/comments?show_id=1396').set(auth);
+    expect(list.status).toBe(200);
+    expect(list.body.data.some((c: { id: number }) => c.id === reply.body.data.id)).toBe(true);
+  });
+
+  it('allows image-only comment (empty content)', async () => {
+    const { auth } = await makeUser();
+    const res = await request(app).post('/api/v1/comments').set(auth).send({ show_id: 99, content: '' });
+    expect(res.status).toBe(200);
+    expect(res.body.data.content).toBeNull();
+  });
 });

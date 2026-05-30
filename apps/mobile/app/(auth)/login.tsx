@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, TextInput, Pressable, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { View, Pressable, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { RtlTextInput } from '@/components/ui/RtlTextInput';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
 import { useRouter } from 'expo-router';
@@ -14,29 +15,6 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { colors, radii } from '@/constants/theme';
 
 WebBrowser.maybeCompleteAuthSession();
-
-// #region agent log
-function authClientLog(
-  hypothesisId: string,
-  location: string,
-  message: string,
-  data: Record<string, unknown>
-): void {
-  fetch('http://127.0.0.1:7797/ingest/27386ae9-b32d-4a2c-b3e1-f5d4dddaf92f', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'b4de87' },
-    body: JSON.stringify({
-      sessionId: 'b4de87',
-      hypothesisId,
-      location,
-      message,
-      data,
-      timestamp: Date.now(),
-      runId: 'mobile-login',
-    }),
-  }).catch(() => {});
-}
-// #endregion
 
 /** Google OAuth web clients do not allow private LAN IPs as redirect_uri (only localhost / https). */
 function isPrivateLanApiHost(): boolean {
@@ -74,12 +52,6 @@ export default function LoginScreen() {
     setMessage('');
     try {
       const redirectUri = getAuthRedirectUri();
-      // #region agent log
-      authClientLog('H1', 'login.tsx:magic-link', 'send', {
-        apiBase: API_BASE_URL,
-        redirectUri: redirectUri.slice(0, 80),
-      });
-      // #endregion
       await sendMagicLink(email, redirectUri);
       setMessage(
         'لینک ورود ارسال شد. روی گوشی همان ایمیل را باز کنید — لینک باید اپ بینجر (Expo Go) را باز کند، نه localhost.'
@@ -96,13 +68,6 @@ export default function LoginScreen() {
     setMessage('در حال انتقال به صفحه ورود گوگل...');
     const redirectUri = getAuthRedirectUri();
     const url = authGoogleUrl(redirectUri);
-    // #region agent log
-    authClientLog('H2', 'login.tsx:google', 'start', {
-      apiBase: API_BASE_URL,
-      redirectUri: redirectUri.slice(0, 80),
-      privateLan: isPrivateLanApiHost(),
-    });
-    // #endregion
     if (Platform.OS !== 'web' && isPrivateLanApiHost()) {
       setMessage(
         'ورود گوگل با آی‌پی Wi‑Fi (مثل 172.20.x) در Google Cloud مجاز نیست.\n' +
@@ -170,14 +135,15 @@ export default function LoginScreen() {
         </View>
 
         <AppText style={styles.label}>ایمیل</AppText>
-        <TextInput
+        <RtlTextInput
+          variant="bordered"
           value={email}
           onChangeText={setEmail}
           placeholder="example@mail.com"
-          placeholderTextColor={colors.muted}
           keyboardType="email-address"
           autoCapitalize="none"
-          style={styles.input}
+          textAlign="left"
+          style={{ writingDirection: 'ltr' }}
         />
 
         <Pressable onPress={handleMagicLink} disabled={loading} style={{ marginTop: 16 }}>
@@ -229,16 +195,6 @@ const styles = StyleSheet.create({
   dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 20 },
   hr: { flex: 1, height: 1, backgroundColor: colors.border },
   label: { color: colors.muted, fontSize: 12, marginBottom: 6, marginRight: 4 },
-  input: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    padding: 14,
-    color: colors.white,
-    textAlign: 'left',
-    fontFamily: 'Vazirmatn',
-  },
   primaryBtn: {
     flexDirection: 'row',
     gap: 8,

@@ -6,7 +6,14 @@
     "apps/*",
     "packages/*"
   ],
+  "overrides": {
+    "esbuild": "0.28.0",
+    "vite": {
+      "esbuild": "0.28.0"
+    }
+  },
   "scripts": {
+    "install:esbuild-fix": "rm -rf node_modules/@esbuild && npm rebuild esbuild",
     "test": "npm run test:shared && npm run test:api && npm run test:mobile",
     "test:api": "npm run test -w @binger/api",
     "test:mobile": "npm run test -w @binger/mobile",

@@ -1,20 +1,25 @@
 import { useState } from 'react';
-import { View, Pressable, TextInput, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { ChevronRight, ImagePlus } from 'lucide-react-native';
 import { AppText } from '@/components/ui/AppText';
+import { RtlTextInput } from '@/components/ui/RtlTextInput';
 import { createStory } from '@/lib/social';
+import { uploadImageAsync } from '@/lib/upload';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { colors, radii } from '@/constants/theme';
 
 export default function CreateStory() {
   const router = useRouter();
+  const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const [image, setImage] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   const pick = async () => {
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.7 });
@@ -22,10 +27,26 @@ export default function CreateStory() {
   };
 
   const submit = async () => {
-    if (!user) return;
+    if (!user || saving) return;
     setSaving(true);
-    await createStory({ user_id: user.id, content_type: 'custom', image_url: image ?? undefined, text_overlay: text });
-    router.back();
+    setError('');
+    try {
+      let imageUrl: string | undefined;
+      if (image) {
+        imageUrl = await uploadImageAsync(image);
+      }
+      await createStory({
+        user_id: user.id,
+        content_type: 'custom',
+        image_url: imageUrl,
+        text_overlay: text.trim() || undefined,
+      });
+      await qc.invalidateQueries({ queryKey: ['stories'] });
+      router.replace(`/story/${user.id}`);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'انتشار استوری ناموفق بود.');
+      setSaving(false);
+    }
   };
 
   return (
@@ -51,13 +72,13 @@ export default function CreateStory() {
             </View>
           )}
         </Pressable>
-        <TextInput
+        <RtlTextInput
+          variant="bordered"
           value={text}
           onChangeText={setText}
           placeholder="یه متن روی استوری بذار..."
-          placeholderTextColor={colors.muted}
-          style={styles.input}
         />
+        {!!error && <AppText style={{ color: '#f87171', textAlign: 'center' }}>{error}</AppText>}
       </View>
     </View>
   );
@@ -66,5 +87,4 @@ export default function CreateStory() {
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
   imageBox: { height: 360, borderRadius: radii.xl, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
-  input: { backgroundColor: colors.card, borderRadius: radii.md, padding: 14, color: colors.white, fontFamily: 'Vazirmatn', textAlign: 'right' },
 });

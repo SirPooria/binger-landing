@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Pressable, TextInput, StyleSheet, ActivityIndicator, Switch } from 'react-native';
+import { View, Pressable, StyleSheet, ActivityIndicator, Switch } from 'react-native';
+import { RtlTextInput } from '@/components/ui/RtlTextInput';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronRight } from 'lucide-react-native';
 import { AppText } from '@/components/ui/AppText';
@@ -46,13 +47,13 @@ export default function CreateThread() {
             </Pressable>
           ))}
         </View>
-        <TextInput value={title} onChangeText={setTitle} placeholder="عنوان بحث" placeholderTextColor={colors.muted} style={styles.input} />
-        <TextInput
+        <RtlTextInput variant="bordered" value={title} onChangeText={setTitle} placeholder="عنوان بحث" />
+        <RtlTextInput
+          variant="bordered"
           value={body}
           onChangeText={setBody}
           placeholder="متن بحث..."
-          placeholderTextColor={colors.muted}
-          style={[styles.input, { height: 160, textAlignVertical: 'top' }]}
+          style={{ height: 160, textAlignVertical: 'top' }}
           multiline
         />
         <View style={styles.spoilerRow}>

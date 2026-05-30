@@ -50,6 +50,22 @@ async function authHeaders(): Promise<Record<string, string>> {
   return h;
 }
 
+async function readApiEnvelope<T>(res: Response): Promise<ApiEnvelope<T>> {
+  const text = await res.text();
+  if (!text.trim()) {
+    if (!res.ok) throw new Error(`خطای سرور (${res.status})`);
+    return {};
+  }
+  try {
+    return JSON.parse(text) as ApiEnvelope<T>;
+  } catch {
+    const preview = text.replace(/\s+/g, ' ').slice(0, 80);
+    throw new Error(
+      `پاسخ سرور JSON نیست (${res.status}). Metro و Docker را چک کنید.\n${preview}`
+    );
+  }
+}
+
 async function refreshAccessToken(): Promise<boolean> {
   const refresh = await getRefreshToken();
   if (!refresh) return false;
@@ -59,10 +75,10 @@ async function refreshAccessToken(): Promise<boolean> {
     body: JSON.stringify({ refresh_token: refresh }),
   });
   if (!res.ok) return false;
-  const json = (await res.json()) as ApiEnvelope<{
+  const json = await readApiEnvelope<{
     access_token: string;
     refresh_token: string;
-  }>;
+  }>(res);
   if (!json.data) return false;
   await setTokens(json.data.access_token, json.data.refresh_token);
   return true;
@@ -78,7 +94,7 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
     if (ok) return request<T>(path, init, false);
     await clearTokens();
   }
-  const json = (await res.json()) as ApiEnvelope<T>;
+  const json = await readApiEnvelope<T>(res);
   if (!res.ok || json.error) {
     throw new Error(json.message ?? json.error ?? `API error ${res.status}`);
   }
@@ -127,7 +143,7 @@ export async function apiPostPublic<T>(path: string, body?: unknown): Promise<T>
   } finally {
     clearTimeout(timer);
   }
-  const json = (await res.json()) as ApiEnvelope<T>;
+  const json = await readApiEnvelope<T>(res);
   if (!res.ok || json.error) throw new Error(json.message ?? json.error ?? `API error ${res.status}`);
   return json.data as T;
 }

@@ -45,6 +45,12 @@ docker compose -f infra/docker-compose.yml --env-file .env up --build
 
 Open **http://localhost:8080** (web) · API health: **http://localhost:8080/api/v1/health**
 
+If `expo-web` build fails with `esbuild` **Expected "0.28.0" but got "0.21.5"**, pull latest `Dockerfile.web` / `package.json` overrides, or locally run:
+
+```bash
+npm ci --ignore-scripts && npm run install:esbuild-fix
+```
+
 Seed fake users:
 
 ```bash
@@ -86,6 +92,10 @@ npm run test:e2e     # full stack smoke (Docker)
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth |
 | `SMTP_*` | Magic-link email (omit to log link in API stdout) |
 | `PUBLIC_API_URL` | Base URL for magic-link verify (default `http://localhost:8080`) |
+| `STORAGE_DRIVER` | `local` (default) or `gcs` for Google Cloud Storage |
+| `UPLOAD_DIR` | Local upload folder when `STORAGE_DRIVER=local` (API container: `/uploads`) |
+| `PUBLIC_UPLOAD_BASE_URL` | Public base for uploaded files, e.g. `http://<lan-ip>:8081/uploads` (device dev via Metro) |
+| `GCS_BUCKET` | GCS bucket name when `STORAGE_DRIVER=gcs` |
 | `APP_REDIRECT_URL` | Deep link after login (default `binger://auth/callback`) |
 
 **Google login on a physical phone:** Google does not allow private LAN IPs (`172.20.x`, `192.168.x`) as OAuth redirect URIs. Use **tunnel** mode (`./scripts/expo-device.sh tunnel`), set `PUBLIC_API_URL` to the tunnel HTTPS origin, and register `{PUBLIC_API_URL}/api/v1/auth/google/callback` in Google Cloud Console.

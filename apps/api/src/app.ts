@@ -1,4 +1,5 @@
-import express from 'express';
+import express, { type NextFunction, type Request, type Response } from 'express';
+import { ZodError } from 'zod';
 import cors from 'cors';
 import compression from 'compression';
 import morgan from 'morgan';
@@ -11,6 +12,7 @@ import { recommendationsRouter } from './routes/recommendations.js';
 import { leaderboardRouter } from './routes/leaderboard.js';
 import { authRouter } from './routes/auth.js';
 import { dataRouter } from './routes/data.js';
+import { mediaRouter } from './routes/media.js';
 
 /** Builds the Express app without binding a port (so tests can import it). */
 export function createApp() {
@@ -52,12 +54,24 @@ export function createApp() {
   });
 
   app.use('/api/v1/auth', authRouter);
+  app.use('/api/v1/media', mediaRouter);
   app.use('/api/v1', dataRouter);
   app.use('/api/v1/tmdb', tmdbRouter);
   app.use('/api/v1/recommendations', recommendationsRouter);
   app.use('/api/v1/leaderboard', leaderboardRouter);
 
   app.use((_req, res) => res.status(404).json({ error: 'not_found' }));
+
+  app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+    if (err instanceof ZodError) {
+      return res.status(400).json({
+        error: 'validation_error',
+        message: err.errors[0]?.message ?? 'داده نامعتبر',
+      });
+    }
+    console.error('[api] unhandled', err);
+    return res.status(500).json({ error: 'server_error', message: 'خطای سرور' });
+  });
 
   return app;
 }

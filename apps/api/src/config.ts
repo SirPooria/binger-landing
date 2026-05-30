@@ -56,6 +56,14 @@ export const config = {
     from: process.env.SMTP_FROM ?? 'Binger <noreply@binger.app>',
   },
 
+  storage: {
+    driver: (process.env.STORAGE_DRIVER ?? 'local') as 'local' | 'gcs',
+    uploadDir: process.env.UPLOAD_DIR ?? './uploads',
+    publicUploadBaseUrl:
+      process.env.PUBLIC_UPLOAD_BASE_URL ?? `${process.env.PUBLIC_API_URL ?? 'http://localhost:8080'}/uploads`,
+    gcsBucket: process.env.GCS_BUCKET ?? '',
+  },
+
   // TTLs in seconds.
   cacheTtl: {
     showDetails: 6 * 60 * 60, // 6h

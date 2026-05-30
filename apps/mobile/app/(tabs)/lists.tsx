@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Pressable, ScrollView, ActivityIndicator, StyleSheet, useWindowDimensions, Modal, TextInput } from 'react-native';
+import { View, Pressable, ScrollView, ActivityIndicator, StyleSheet, useWindowDimensions, Modal } from 'react-native';
+import { RtlTextInput } from '@/components/ui/RtlTextInput';
 import { FlashList } from '@shopify/flash-list';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Lock, Globe } from 'lucide-react-native';
@@ -93,12 +94,11 @@ export default function ListsScreen() {
         <View style={styles.modalBackdrop}>
           <View style={styles.modalBox}>
             <AppText weight="black" style={{ fontSize: 18, marginBottom: 12 }}>لیست جدید</AppText>
-            <TextInput
+            <RtlTextInput
+              variant="bordered"
               value={newTitle}
               onChangeText={setNewTitle}
               placeholder="مثلاً: بهترین‌های کره‌ای"
-              placeholderTextColor={colors.muted}
-              style={styles.modalInput}
             />
             <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
               <Pressable onPress={() => setCreating(false)} style={[styles.modalBtn, { backgroundColor: colors.card }]}>

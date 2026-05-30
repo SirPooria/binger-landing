@@ -15,31 +15,42 @@ export interface CommentRow {
   replies?: CommentRow[];
 }
 
+/** Postgres BIGINT ids may arrive as strings in JSON — normalize before threading. */
+function normalizeCommentRow(c: CommentRow): CommentRow {
+  return {
+    ...c,
+    id: Number(c.id),
+    show_id: c.show_id != null ? Number(c.show_id) : null,
+    episode_id: c.episode_id != null ? Number(c.episode_id) : null,
+    parent_id: c.parent_id != null ? Number(c.parent_id) : null,
+  };
+}
+
 export async function fetchComments(opts: { showId?: number; episodeId?: number }): Promise<CommentRow[]> {
   const q = opts.episodeId ? `episode_id=${opts.episodeId}` : `show_id=${opts.showId}`;
-  const rows = await apiGet<CommentRow[]>(`/comments?${q}`);
+  const rows = (await apiGet<CommentRow[]>(`/comments?${q}`)).map(normalizeCommentRow);
   const top = rows.filter((c) => !c.parent_id);
   const byParent = new Map<number, CommentRow[]>();
   rows.filter((c) => c.parent_id).forEach((c) => {
-    if (!byParent.has(c.parent_id!)) byParent.set(c.parent_id!, []);
-    byParent.get(c.parent_id!)!.push(c);
+    const pid = c.parent_id!;
+    if (!byParent.has(pid)) byParent.set(pid, []);
+    byParent.get(pid)!.push(c);
   });
   top.forEach((c) => (c.replies = (byParent.get(c.id) ?? []).reverse()));
   return top;
 }
 
 export async function postComment(input: {
-  userId: string;
   showId?: number;
   episodeId?: number;
-  content: string;
+  content?: string;
   parentId?: number;
 }) {
   return apiPost<CommentRow>('/comments', {
-    show_id: input.showId,
-    episode_id: input.episodeId,
+    show_id: input.showId != null ? Number(input.showId) : undefined,
+    episode_id: input.episodeId != null ? Number(input.episodeId) : undefined,
     content: input.content,
-    parent_id: input.parentId,
+    parent_id: input.parentId != null ? Number(input.parentId) : undefined,
   });
 }
 

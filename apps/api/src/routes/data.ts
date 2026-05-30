@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { asyncHandler } from '../asyncHandler.js';
 import { z } from 'zod';
 import { query } from '../db.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
@@ -83,6 +84,60 @@ dataRouter.post('/episode-reactions', async (req, res) => {
   res.json({ data: { ok: true } });
 });
 
+// ── Profile (current user) ────────────────────────────────────
+dataRouter.patch('/profiles/me', async (req, res) => {
+  const body = z
+    .object({
+      full_name: z.string().max(120).optional(),
+      username: z
+        .string()
+        .min(3)
+        .max(30)
+        .regex(/^[a-zA-Z0-9_]+$/)
+        .optional(),
+      bio: z.string().max(500).optional(),
+      avatar_url: z.string().url().optional(),
+    })
+    .parse(req.body);
+
+  if (body.username) {
+    const clash = await query('SELECT id FROM profiles WHERE lower(username) = lower($1) AND id <> $2', [
+      body.username,
+      uid(req),
+    ]);
+    if (clash.rows.length) return res.status(409).json({ error: 'username_taken', message: 'این نام کاربری قبلاً استفاده شده.' });
+  }
+
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  let i = 1;
+  for (const [key, val] of Object.entries(body) as [string, string | undefined][]) {
+    if (val === undefined) continue;
+    fields.push(`${key} = $${i++}`);
+    values.push(val);
+  }
+  if (fields.length === 0) {
+    const { rows } = await query('SELECT * FROM profiles WHERE id = $1', [uid(req)]);
+    return res.json({ data: rows[0] ?? null });
+  }
+  fields.push(`updated_at = now()`);
+  values.push(uid(req));
+  const { rows } = await query(
+    `UPDATE profiles SET ${fields.join(', ')} WHERE id = $${i} RETURNING *`,
+    values
+  );
+  if (body.avatar_url || body.full_name) {
+    await query(
+      `UPDATE users SET
+         avatar_url = COALESCE($2, avatar_url),
+         full_name = COALESCE($3, full_name)
+       WHERE id = $1`,
+      [uid(req), body.avatar_url ?? null, body.full_name ?? null]
+    );
+  }
+  res.json({ data: rows[0] ?? null });
+});
+
 // ── Profile stats ─────────────────────────────────────────────
 dataRouter.get('/profiles/:id/stats', async (req, res) => {
   const id = req.params.id;
@@ -135,7 +190,17 @@ dataRouter.get('/follows/following-ids', async (req, res) => {
 });
 
 // ── Comments ──────────────────────────────────────────────────
-dataRouter.get('/comments', async (req, res) => {
+function serializeCommentRow(row: Record<string, unknown>) {
+  return {
+    ...row,
+    id: Number(row.id),
+    show_id: row.show_id != null ? Number(row.show_id) : null,
+    episode_id: row.episode_id != null ? Number(row.episode_id) : null,
+    parent_id: row.parent_id != null ? Number(row.parent_id) : null,
+  };
+}
+
+dataRouter.get('/comments', asyncHandler(async (req, res) => {
   const showId = req.query.show_id ? Number(req.query.show_id) : null;
   const episodeId = req.query.episode_id ? Number(req.query.episode_id) : null;
   let sql = `
@@ -157,24 +222,25 @@ dataRouter.get('/comments', async (req, res) => {
   }
   sql += ' ORDER BY c.created_at DESC';
   const { rows } = await query(sql, params);
-  res.json({ data: rows });
-});
+  res.json({ data: rows.map((r) => serializeCommentRow(r as Record<string, unknown>)) });
+}));
 
-dataRouter.post('/comments', async (req, res) => {
+dataRouter.post('/comments', asyncHandler(async (req, res) => {
   const body = z
     .object({
-      show_id: z.number().optional(),
-      episode_id: z.number().optional(),
-      content: z.string(),
-      parent_id: z.number().optional(),
+      show_id: z.coerce.number().optional(),
+      episode_id: z.coerce.number().optional(),
+      content: z.string().optional(),
+      parent_id: z.coerce.number().optional(),
     })
     .parse(req.body);
+  const content = (body.content ?? '').trim();
   const { rows } = await query(
     `INSERT INTO comments (user_id, show_id, episode_id, content, parent_id) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-    [uid(req), body.show_id ?? null, body.episode_id ?? null, body.content, body.parent_id ?? null]
+    [uid(req), body.show_id ?? null, body.episode_id ?? null, content || null, body.parent_id ?? null]
   );
-  res.json({ data: rows[0] });
-});
+  res.json({ data: serializeCommentRow(rows[0] as Record<string, unknown>) });
+}));
 
 dataRouter.post('/comments/:id/media', async (req, res) => {
   const body = z
@@ -219,26 +285,31 @@ dataRouter.get('/episode-screenshots', async (req, res) => {
 
 // ── XP ────────────────────────────────────────────────────────
 dataRouter.post('/xp/award', async (req, res) => {
-  const body = z.object({ action: z.string(), reference_id: z.string().optional() }).parse(req.body);
-  const amounts: Record<string, number> = {
-    watch_episode: 10,
-    rate_show: 20,
-    comment: 15,
-    comment_liked: 5,
-    follow: 10,
-    followed: 25,
-    badge_earned: 100,
-    create_theory: 30,
-    forum_post: 20,
-  };
-  const amount = amounts[body.action] ?? 0;
-  const { rows } = await query(`SELECT * FROM award_xp($1, $2, $3, $4)`, [
-    uid(req),
-    amount,
-    body.action,
-    body.reference_id ?? null,
-  ]);
-  res.json({ data: rows[0] ?? null });
+  try {
+    const body = z.object({ action: z.string(), reference_id: z.string().optional() }).parse(req.body);
+    const amounts: Record<string, number> = {
+      watch_episode: 10,
+      rate_show: 20,
+      comment: 15,
+      comment_liked: 5,
+      follow: 10,
+      followed: 25,
+      badge_earned: 100,
+      create_theory: 30,
+      forum_post: 20,
+    };
+    const amount = amounts[body.action] ?? 0;
+    const { rows } = await query(`SELECT * FROM award_xp($1, $2, $3, $4)`, [
+      uid(req),
+      amount,
+      body.action,
+      body.reference_id ?? null,
+    ]);
+    res.json({ data: rows[0] ?? null });
+  } catch (e) {
+    console.error('[xp/award]', e);
+    res.status(500).json({ error: 'xp_award_failed', message: 'امتیاز ثبت نشد.' });
+  }
 });
 
 // ── Stories ───────────────────────────────────────────────────

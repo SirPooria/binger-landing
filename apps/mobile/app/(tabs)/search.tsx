@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, TextInput, ActivityIndicator, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, useWindowDimensions } from 'react-native';
+import { RtlTextInput } from '@/components/ui/RtlTextInput';
 import { FlashList } from '@shopify/flash-list';
 import { useQuery } from '@tanstack/react-query';
 import { Search as SearchIcon } from 'lucide-react-native';
@@ -32,11 +33,10 @@ export default function SearchScreen() {
     <Screen noPadding>
       <View style={styles.searchBar}>
         <SearchIcon size={20} color={colors.muted} />
-        <TextInput
+        <RtlTextInput
           value={query}
           onChangeText={onChange}
-          placeholder="جستجوی سریال..."
-          placeholderTextColor={colors.muted}
+          placeholder={'\u2026جستجوی سریال'}
           style={styles.input}
           autoFocus
         />
@@ -71,7 +71,7 @@ export default function SearchScreen() {
 
 const styles = StyleSheet.create({
   searchBar: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 10,
     margin: 16,

@@ -1,10 +1,20 @@
 import { useState } from 'react';
-import { ScrollView, View, Pressable, TextInput, ActivityIndicator, StyleSheet } from 'react-native';
+import {
+  ScrollView,
+  View,
+  Pressable,
+  ActivityIndicator,
+  StyleSheet,
+  Platform,
+  type NativeSyntheticEvent,
+  type TextInputKeyPressEventData,
+} from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronRight, Send } from 'lucide-react-native';
 import { AppText } from '@/components/ui/AppText';
+import { RtlTextInput } from '@/components/ui/RtlTextInput';
 import { fetchForum, fetchReplies, postReply } from '@/lib/forums';
 import { awardXp } from '@/lib/gamification';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -17,6 +27,7 @@ export default function ThreadDetail() {
   const user = useAuthStore((s) => s.user);
   const qc = useQueryClient();
   const [reply, setReply] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const thread = useQuery({
     queryKey: ['forum-thread', id],
@@ -25,11 +36,25 @@ export default function ThreadDetail() {
   const replies = useQuery({ queryKey: ['forum-replies', id], queryFn: () => fetchReplies(id) });
 
   const submit = async () => {
-    if (!user || !reply.trim()) return;
-    await postReply(id, reply.trim());
-    await awardXp(user.id, 'forum_post', id);
-    setReply('');
-    qc.invalidateQueries({ queryKey: ['forum-replies', id] });
+    if (!user || !reply.trim() || submitting) return;
+    setSubmitting(true);
+    try {
+      await postReply(id, reply.trim());
+      await awardXp(user.id, 'forum_post', id);
+      setReply('');
+      qc.invalidateQueries({ queryKey: ['forum-replies', id] });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const onKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+    if (Platform.OS !== 'web') return;
+    const ne = e.nativeEvent as TextInputKeyPressEventData & { shiftKey?: boolean };
+    if (ne.key === 'Enter' && !ne.shiftKey) {
+      e.preventDefault?.();
+      void submit();
+    }
   };
 
   if (thread.isLoading || !thread.data) {
@@ -74,8 +99,18 @@ export default function ThreadDetail() {
       </ScrollView>
 
       <View style={styles.composer}>
-        <TextInput value={reply} onChangeText={setReply} placeholder="پاسخت رو بنویس..." placeholderTextColor={colors.muted} style={styles.input} multiline />
-        <Pressable onPress={submit} hitSlop={6}><Send size={22} color={colors.accent} /></Pressable>
+        <RtlTextInput
+          value={reply}
+          onChangeText={setReply}
+          placeholder="پاسخت رو بنویس..."
+          style={styles.input}
+          multiline
+          onKeyPress={onKeyPress}
+          editable={!submitting}
+        />
+        <Pressable onPress={submit} hitSlop={6} disabled={submitting}>
+          {submitting ? <ActivityIndicator size="small" color={colors.accent} /> : <Send size={22} color={colors.accent} />}
+        </Pressable>
       </View>
     </View>
   );
@@ -90,5 +125,5 @@ const styles = StyleSheet.create({
   reply: { flexDirection: 'row', gap: 10, marginBottom: 16 },
   avatar: { width: 36, height: 36, borderRadius: 999, backgroundColor: colors.card },
   composer: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderTopWidth: 1, borderTopColor: colors.border },
-  input: { flex: 1, color: colors.white, fontFamily: 'Vazirmatn', textAlign: 'right', maxHeight: 100 },
+  input: { flex: 1, maxHeight: 100 },
 });

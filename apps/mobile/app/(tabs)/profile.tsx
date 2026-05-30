@@ -54,9 +54,14 @@ export default function ProfileScreen() {
             <AppText weight="black" style={styles.name}>{p?.full_name ?? p?.username ?? 'کاربر بینجر'}</AppText>
             <AppText style={styles.username}>@{p?.username ?? '...'}</AppText>
           </View>
-          <Pressable onPress={handleSignOut} hitSlop={10}>
-            <LogOut size={22} color={colors.muted} />
-          </Pressable>
+          <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+            <Pressable onPress={() => router.push('/profile/edit')} hitSlop={10}>
+              <AppText style={{ color: colors.accent, fontSize: 13 }}>ویرایش</AppText>
+            </Pressable>
+            <Pressable onPress={handleSignOut} hitSlop={10}>
+              <LogOut size={22} color={colors.muted} />
+            </Pressable>
+          </View>
         </View>
 
         {!!p?.bio && <AppText style={styles.bio}>{p.bio}</AppText>}
