@@ -294,6 +294,41 @@ CREATE TABLE IF NOT EXISTS ai_recommendations (
   PRIMARY KEY (user_id, show_id)
 );
 
+-- Shared LLM output by watch-history fingerprint (no user-supplied prompts).
+CREATE TABLE IF NOT EXISTS ai_recs_context_cache (
+  context_hash  CHAR(64) PRIMARY KEY,
+  recs_json     JSONB NOT NULL,
+  generated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS ai_recs_user_state (
+  user_id         UUID PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
+  context_hash    CHAR(64) NOT NULL,
+  last_ready_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_quota_date DATE
+);
+
+CREATE TABLE IF NOT EXISTS ai_recs_queue (
+  user_id       UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  context_hash  CHAR(64) NOT NULL,
+  status        TEXT NOT NULL CHECK (status IN ('pending', 'processing', 'ready', 'failed')),
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, context_hash)
+);
+CREATE INDEX IF NOT EXISTS idx_ai_recs_queue_pending ON ai_recs_queue (status, created_at)
+  WHERE status = 'pending';
+
+-- Mood chat fallbacks (unmatched queries) for tuning — no PII beyond user_id.
+CREATE TABLE IF NOT EXISTS ai_mood_logs (
+  id          BIGSERIAL PRIMARY KEY,
+  user_id     UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  query_text  TEXT NOT NULL,
+  match_kind  TEXT DEFAULT 'fallback',
+  created_at  TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_ai_mood_logs_user ON ai_mood_logs(user_id);
+
 -- Custom lists (5.8) ────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS user_lists (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),

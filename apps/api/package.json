@@ -9,6 +9,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
+    "ai-recs:batch": "tsx src/scripts/runAiRecsBatch.ts",
     "seed": "tsx src/scripts/seed.ts",
     "seed:reset": "tsx src/scripts/seed.ts --reset",
     "test": "vitest run --config vitest.config.mts"
@@ -25,6 +26,7 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
+    "node-cron": "^4.2.1",
     "nodemailer": "^6.9.16",
     "pg": "^8.13.1",
     "rate-limit-redis": "^4.2.0",
@@ -39,12 +41,13 @@
     "@types/morgan": "^1.9.9",
     "@types/multer": "^1.4.13",
     "@types/node": "^20.16.5",
+    "@types/node-cron": "^3.0.11",
     "@types/nodemailer": "^6.4.17",
     "@types/pg": "^8.11.10",
+    "@types/supertest": "^6.0.2",
+    "supertest": "^7.0.0",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",
-    "vitest": "^2.1.8",
-    "supertest": "^7.0.0",
-    "@types/supertest": "^6.0.2"
+    "vitest": "^2.1.8"
   }
 }

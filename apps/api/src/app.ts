@@ -9,6 +9,7 @@ import { config } from './config.js';
 import { redis } from './redis.js';
 import { tmdbRouter } from './routes/tmdb.js';
 import { recommendationsRouter } from './routes/recommendations.js';
+import { aiRouter } from './routes/ai.js';
 import { leaderboardRouter } from './routes/leaderboard.js';
 import { authRouter } from './routes/auth.js';
 import { dataRouter } from './routes/data.js';
@@ -58,6 +59,7 @@ export function createApp() {
   app.use('/api/v1', dataRouter);
   app.use('/api/v1/tmdb', tmdbRouter);
   app.use('/api/v1/recommendations', recommendationsRouter);
+  app.use('/api/v1/ai', aiRouter);
   app.use('/api/v1/leaderboard', leaderboardRouter);
 
   app.use((_req, res) => res.status(404).json({ error: 'not_found' }));

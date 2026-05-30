@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as tmdb from '@/lib/tmdbClient';
-import { getAiRecommendations } from '@/lib/ai';
+import { generateAiRecommendations, getAiRecommendations, getAiRecsStatus } from '@/lib/ai';
 
 export const useTrending = () =>
   useQuery({ queryKey: ['trending'], queryFn: () => tmdb.getTrendingShows(1) });
@@ -33,7 +33,26 @@ export const useShowsByGenre = (genreId: number | null) =>
 export const useAiRecommendations = (userId: string | undefined) =>
   useQuery({
     queryKey: ['ai-recs', userId],
-    queryFn: () => getAiRecommendations(userId!),
+    queryFn: () => getAiRecommendations(),
     enabled: !!userId,
     staleTime: 24 * 60 * 60 * 1000,
   });
+
+export const useAiRecsStatus = (userId: string | undefined) =>
+  useQuery({
+    queryKey: ['ai-recs-status', userId],
+    queryFn: () => getAiRecsStatus(),
+    enabled: !!userId,
+    staleTime: 60_000,
+  });
+
+export const useGenerateAiRecommendations = (userId: string | undefined) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => generateAiRecommendations(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ai-recs', userId] });
+      qc.invalidateQueries({ queryKey: ['ai-recs-status', userId] });
+    },
+  });
+};

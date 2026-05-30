@@ -1,10 +1,12 @@
 import { apiGet, apiPost } from './api';
-import type { AiRecommendation } from '@binger/shared';
+import type { AiRecommendation, AiRecsStatus, MoodChatResponse } from '@binger/shared';
 
-/** AI-powered, dynamic recommendations for a user (gateway caches 24h). */
-export const getAiRecommendations = (userId: string) =>
-  apiGet<AiRecommendation[]>(`/recommendations/${userId}`);
+export const getAiRecommendations = () => apiGet<AiRecommendation[]>('/recommendations/me');
 
-/** Force the gateway to regenerate (e.g. after 5 new watches). */
-export const refreshAiRecommendations = (userId: string) =>
-  apiPost<AiRecommendation[]>(`/recommendations/${userId}/refresh`);
+export const getAiRecsStatus = () => apiGet<AiRecsStatus>('/recommendations/me/status');
+
+export const generateAiRecommendations = () =>
+  apiPost<AiRecommendation[]>('/recommendations/me/generate');
+
+export const postMoodChat = (message: string) =>
+  apiPost<MoodChatResponse>('/ai/mood', { message });

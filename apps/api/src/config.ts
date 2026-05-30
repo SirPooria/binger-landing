@@ -34,7 +34,11 @@ export const config = {
   ai: {
     anthropicKey: process.env.ANTHROPIC_API_KEY ?? '',
     openaiKey: process.env.OPENAI_API_KEY ?? '',
-    model: process.env.AI_MODEL ?? 'claude-3-5-sonnet-latest',
+    model: process.env.AI_MODEL ?? 'claude-sonnet-4-6',
+    /** Daily cron for batch AI recs (server timezone below). Default 03:00. */
+    batchCron: process.env.AI_RECS_BATCH_CRON ?? '0 3 * * *',
+    batchTimezone: process.env.AI_RECS_BATCH_TZ ?? 'Asia/Tehran',
+    batchEnabled: process.env.AI_RECS_BATCH_ENABLED !== 'false',
   },
 
   auth: {

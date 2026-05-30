@@ -51,6 +51,11 @@ If `expo-web` build fails with `esbuild` **Expected "0.28.0" but got "0.21.5"**,
 npm ci --ignore-scripts && npm run install:esbuild-fix
 ```
 
+### AI features
+
+- **Home → «چت با Binger AI»** — rule-based mood / similarity chat (`POST /api/v1/ai/mood`, TMDB only).
+- **Home → «پیشنهاد هوش مصنوعی»** — Claude after **3** shows **دیده‌شده**. User triggers `POST /api/v1/recommendations/me/generate` anytime (one LLM call per calendar day in `AI_RECS_BATCH_TZ`; fingerprint cache reuse does not spend quota). Requires `ANTHROPIC_API_KEY`. DB migrations: `002_ai_recs_batch.sql`, `003_ai_recs_quota.sql`.
+
 Seed fake users:
 
 ```bash

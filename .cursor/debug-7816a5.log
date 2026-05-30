@@ -1,0 +1,4 @@
+{"sessionId":"7816a5","location":"AiRecommendationsRow.tsx","message":"ui state","data":{"ready":true,"watched":3,"min":3,"dataLen":0,"withShow":0,"isLoading":true,"isError":false,"errMsg":null},"hypothesisId":"E","timestamp":1780172206881,"runId":"pre-fix"}
+{"sessionId":"7816a5","location":"AiRecommendationsRow.tsx","message":"ui state","data":{"ready":true,"watched":3,"min":3,"dataLen":0,"withShow":0,"isLoading":true,"isError":false,"errMsg":null},"hypothesisId":"E","timestamp":1780172217688,"runId":"pre-fix"}
+{"sessionId":"7816a5","location":"ai.ts:getAiRecommendations","message":"client recs ok","data":{"total":10,"withShow":10},"hypothesisId":"E","timestamp":1780172238855,"runId":"pre-fix"}
+{"sessionId":"7816a5","location":"AiRecommendationsRow.tsx","message":"ui state","data":{"ready":true,"watched":3,"min":3,"dataLen":10,"withShow":10,"isLoading":false,"isError":false,"errMsg":null},"hypothesisId":"E","timestamp":1780172238875,"runId":"pre-fix"}

@@ -64,6 +64,7 @@ export default function RootLayout() {
               <Stack.Screen name="tv/[id]/season/[s]/episode/[e]" />
               <Stack.Screen name="user/[id]" />
               <Stack.Screen name="category/[id]" />
+              <Stack.Screen name="ai/mood" />
             </Stack>
           </BottomSheetModalProvider>
         </QueryClientProvider>
