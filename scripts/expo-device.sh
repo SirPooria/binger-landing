@@ -6,17 +6,6 @@
 #   EXPO_DEV_HOST=192.168.1.146 ./scripts/expo-device.sh tunnel
 set -euo pipefail
 
-# #region agent log
-DEBUG_LOG="$(cd "$(dirname "$0")/.." && pwd)/.cursor/debug-b4de87.log"
-agent_log() {
-  local hypothesis_id="$1" location="$2" message="$3"
-  shift 3
-  local data="${1:-{}}"
-  mkdir -p "$(dirname "$DEBUG_LOG")"
-  printf '%s\n' "{\"sessionId\":\"b4de87\",\"hypothesisId\":\"${hypothesis_id}\",\"location\":\"${location}\",\"message\":\"${message}\",\"data\":${data},\"timestamp\":$(($(date +%s)*1000)),\"runId\":\"${EXPO_DEBUG_RUN_ID:-expo-device}\"}" >>"$DEBUG_LOG" 2>/dev/null || true
-}
-# #endregion
-
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MODE="${1:-lan}"
 EXPO_DEV_HOST="${EXPO_DEV_HOST:-}"
@@ -32,14 +21,17 @@ if [[ -z "$EXPO_DEV_HOST" ]]; then
   exit 1
 fi
 
-export EXPO_PUBLIC_API_BASE_URL="http://${EXPO_DEV_HOST}:8080"
-# Magic-link emails use this host in the verify URL (must be reachable from the phone).
-export PUBLIC_API_URL="http://${EXPO_DEV_HOST}:8080"
-export EXPO_DEBUG_RUN_ID="${EXPO_DEBUG_RUN_ID:-$(date +%s)}"
+# API goes through Metro on :8081 (metro-api-proxy.js → Docker :8080). Phones on WSL2 often cannot reach :8080.
+export EXPO_PUBLIC_API_BASE_URL="http://${EXPO_DEV_HOST}:${METRO_PORT}"
+export PUBLIC_API_URL="http://${EXPO_DEV_HOST}:${METRO_PORT}"
+export BINGER_API_PROXY_TARGET="http://127.0.0.1:8080"
 
-echo "[expo-device] API base URL: $EXPO_PUBLIC_API_BASE_URL"
-echo "[expo-device] Magic-link host: $PUBLIC_API_URL (set in .env for Docker too)"
-echo "[expo-device] Metro mode:   $MODE (port $METRO_PORT)"
+echo "[expo-device] Metro (bundle / Expo Go / web):  exp://${EXPO_DEV_HOST}:${METRO_PORT}"
+echo "[expo-device] API (via Metro proxy):            $EXPO_PUBLIC_API_BASE_URL"
+echo "[expo-device]   → Docker: docker compose -f infra/docker-compose.yml --env-file .env up -d api nginx"
+echo "[expo-device]   → iPhone Safari test: ${EXPO_PUBLIC_API_BASE_URL}/api/v1/health"
+echo "[expo-device]   → Metro must stay running (API + magic links use :8081, not :8080)"
+echo "[expo-device] Metro mode: $MODE"
 echo ""
 
 if command -v ss >/dev/null 2>&1 && ss -ltn "sport = :$METRO_PORT" 2>/dev/null | grep -q ":$METRO_PORT"; then
@@ -59,13 +51,9 @@ if [[ "$MODE" == "tunnel" ]]; then
   exec npx expo start --tunnel --port "$METRO_PORT"
 else
   export REACT_NATIVE_PACKAGER_HOSTNAME="$EXPO_DEV_HOST"
-  echo "[expo-device] LAN QR: exp://${EXPO_DEV_HOST}:${METRO_PORT}"
+  echo "  Metro status: http://${EXPO_DEV_HOST}:${METRO_PORT}/status"
+  echo "  API health:   ${EXPO_PUBLIC_API_BASE_URL}/api/v1/health"
+  echo "  After QR: wait 1-2 min for first bundle."
   echo ""
-  echo "  iPhone Safari FIRST: http://${EXPO_DEV_HOST}:${METRO_PORT}/status"
-  echo "  After QR: wait 1-2 min for first bundle. /status may hang while bundling."
-  echo ""
-  # #region agent log
-  agent_log "H1" "expo-device.sh:lan" "start" "{\"host\":\"${EXPO_DEV_HOST}\",\"port\":${METRO_PORT}}"
-  # #endregion
   exec npx expo start --lan --port "$METRO_PORT"
 fi

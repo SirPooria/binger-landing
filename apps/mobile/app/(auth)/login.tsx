@@ -18,7 +18,7 @@ WebBrowser.maybeCompleteAuthSession();
 function formatAuthError(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e);
   if (msg.includes('Network request failed') || msg.includes('Failed to fetch')) {
-    return 'سرور در دسترس نیست. Metro را با EXPO_DEV_HOST=آی‌پی وای‌فای اجرا کنید و Docker روی :8080 را باز نگه دارید.';
+    return 'سرور در دسترس نیست. Metro را با EXPO_DEV_HOST=آی‌پی وای‌فای اجرا کنید؛ Docker (nginx) و Safari: :8081/api/v1/health';
   }
   return msg || 'خطای ناشناخته';
 }

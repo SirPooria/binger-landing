@@ -58,11 +58,11 @@ npm run seed:reset
 From repo root (Ubuntu terminal, Node 20 recommended):
 
 ```bash
-export EXPO_PUBLIC_API_BASE_URL=http://<your-lan-ip>:8080
 EXPO_DEV_HOST=<your-lan-ip> ./scripts/expo-device.sh lan
+./scripts/set-lan-env.sh --write   # PUBLIC_API_URL + EXPO_PUBLIC_* → :8081 for phone
 ```
 
-If the phone cannot reach `http://<ip>:8081/status`, run **`scripts/expo-wsl-firewall.ps1`** as Administrator on Windows, then `wsl --shutdown`.
+On **WSL2**, phones usually reach **Metro on :8081** but not **Docker on :8080**. Device dev routes the API through Metro (`/api` → nginx on `127.0.0.1:8080`). Test in Safari (Metro must be running): **`http://<ip>:8081/api/v1/health`**. If Metro itself fails, run **`scripts/expo-wsl-firewall.ps1`** as Administrator, then `wsl --shutdown`.
 
 See `scripts/expo-device.sh` and `scripts/expo-wsl-firewall.ps1` for tunnel/LAN details.
 
@@ -88,7 +88,7 @@ npm run test:e2e     # full stack smoke (Docker)
 | `PUBLIC_API_URL` | Base URL for magic-link verify (default `http://localhost:8080`) |
 | `APP_REDIRECT_URL` | Deep link after login (default `binger://auth/callback`) |
 
-Google Console redirect URI: `{PUBLIC_API_URL}/api/v1/auth/google/callback`
+Google Console redirect URI: `{PUBLIC_API_URL}/api/v1/auth/google/callback` (with device dev, `PUBLIC_API_URL` is `http://<lan-ip>:8081` after `set-lan-env.sh --write`)
 
 ---
 

@@ -25,10 +25,11 @@ if [[ -z "$IP" ]]; then
   exit 1
 fi
 
-URL="http://${IP}:8080"
-echo "Suggested API base URL: $URL"
+# Device dev: API on Metro :8081 (proxied to Docker :8080). :8080 alone often fails on WSL2 phones.
+URL="http://${IP}:8081"
+echo "Suggested API base URL (device + Metro running): $URL"
 echo ""
-echo "iPhone Safari test (must return JSON):"
+echo "iPhone Safari test (must return JSON; Metro must be running):"
 echo "  ${URL}/api/v1/health"
 echo ""
 echo "Start Expo:"

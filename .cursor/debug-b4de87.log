@@ -8,3 +8,10 @@
 {"sessionId":"b4de87","hypothesisId":"H1","location":"expo-device.sh:lan","message":"start","data":{"host":"192.168.1.146","port":8081}},"timestamp":1780140742000,"runId":"1780140741"}
 {"sessionId":"b4de87","hypothesisId":"H11","location":"expo-device.sh:toolchain","message":"resolved","data":{"node":"/home/mz/.nvm/versions/node/v24.8.0/bin/node","npx":"/home/mz/.nvm/versions/node/v24.8.0/bin/npx","nodeMajor":"24"}},"timestamp":1780140923000,"runId":"1780140923"}
 {"sessionId":"b4de87","hypothesisId":"H1","location":"expo-device.sh:lan","message":"start","data":{"host":"172.20.10.3","port":8081}},"timestamp":1780140923000,"runId":"1780140923"}
+{"sessionId":"b4de87","hypothesisId":"H1","location":"expo-device.sh:lan","message":"start","data":{"host":"172.20.10.3","port":8081}},"timestamp":1780141811000,"runId":"1780141811"}
+{"sessionId":"b4de87","hypothesisId":"H1","location":"expo-device.sh:lan","message":"start","data":{"host":"172.20.10.3","port":8081}},"timestamp":1780146411000,"runId":"1780146411"}
+{"sessionId":"b4de87","hypothesisId":"H1","location":"expo-device.sh:lan","message":"start","data":{"host":"172.20.10.3","port":8081}},"timestamp":1780146689000,"runId":"1780146689"}
+{"sessionId":"b4de87","hypothesisId":"H1","location":"expo-device.sh:lan","message":"start","data":{"host":"172.20.10.3","port":8081}},"timestamp":1780149235000,"runId":"1780149235"}
+{"sessionId":"b4de87","hypothesisId":"H1","location":"expo-device.sh:lan","message":"start","data":{"host":"172.20.10.3","port":8081}},"timestamp":1780150858000,"runId":"1780150858"}
+{"sessionId":"b4de87","hypothesisId":"H1","location":"expo-device.sh:lan","message":"start","data":{"host":"172.20.10.3","port":8081}},"timestamp":1780151244000,"runId":"1780151244"}
+{"sessionId":"b4de87","hypothesisId":"H1","location":"expo-device.sh:lan","message":"start","data":{"host":"172.20.10.3","port":8081}},"timestamp":1780152136000,"runId":"1780152136"}

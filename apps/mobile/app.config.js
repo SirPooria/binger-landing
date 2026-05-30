@@ -8,10 +8,10 @@ const devHost = process.env.EXPO_DEV_HOST?.trim();
 const fromEnv = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
 const isLocalhost = (url) => !url || /localhost|127\.0\.0\.1/i.test(url);
 
-/** Phone must use PC Wi‑Fi IP — not localhost. EXPO_DEV_HOST wins when .env is still localhost. */
+/** Phone must use PC Wi‑Fi IP — not localhost. On device dev, API is proxied via Metro :8081. */
 function resolveApiBaseUrl() {
   if (fromEnv && !isLocalhost(fromEnv)) return fromEnv;
-  if (devHost) return `http://${devHost}:8080`;
+  if (devHost) return `http://${devHost}:8081`;
   return fromEnv || appJson.expo.extra?.apiBaseUrl || 'http://localhost:8080';
 }
 
