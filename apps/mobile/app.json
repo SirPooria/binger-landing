@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "Binger",
+    "slug": "binger",
+    "scheme": "binger",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#050505"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.binger.app"
+    },
+    "android": {
+      "package": "com.binger.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#050505"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png",
+      "lang": "fa",
+      "dir": "rtl"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      ["expo-image", { "libwebpVersion": "1.3.2" }],
+      "expo-video",
+      "expo-notifications",
+      "expo-media-library"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiBaseUrl": "http://localhost:8080"
+    }
+  }
+}

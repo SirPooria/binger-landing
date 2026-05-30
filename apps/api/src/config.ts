@@ -1,0 +1,50 @@
+import 'dotenv/config';
+
+function required(name: string, fallback?: string): string {
+  const value = process.env[name] ?? fallback;
+  if (value === undefined) {
+    // Don't crash on boot for optional-in-dev keys; warn loudly instead.
+    console.warn(`[config] Missing env var: ${name}`);
+    return '';
+  }
+  return value;
+}
+
+export const config = {
+  nodeEnv: process.env.NODE_ENV ?? 'development',
+  port: Number(process.env.API_PORT ?? 3001),
+
+  tmdb: {
+    apiKey: required('TMDB_API_KEY'),
+    baseUrl: 'https://api.themoviedb.org/3',
+  },
+
+  redis: {
+    url: process.env.REDIS_URL ?? 'redis://redis:6379',
+  },
+
+  postgres: {
+    host: process.env.POSTGRES_HOST ?? 'postgres',
+    port: Number(process.env.POSTGRES_PORT ?? 5432),
+    database: process.env.POSTGRES_DB ?? 'binger',
+    user: process.env.POSTGRES_USER ?? 'binger_user',
+    password: process.env.POSTGRES_PASSWORD ?? '',
+  },
+
+  ai: {
+    anthropicKey: process.env.ANTHROPIC_API_KEY ?? '',
+    openaiKey: process.env.OPENAI_API_KEY ?? '',
+    model: process.env.AI_MODEL ?? 'claude-3-5-sonnet-latest',
+  },
+
+  // TTLs in seconds.
+  cacheTtl: {
+    showDetails: 6 * 60 * 60, // 6h
+    season: 6 * 60 * 60,
+    episode: 6 * 60 * 60,
+    search: 60 * 60, // 1h
+    trending: 30 * 60, // 30m
+    list: 60 * 60, // generic discover lists
+    aiRecs: 24 * 60 * 60, // 24h
+  },
+} as const;

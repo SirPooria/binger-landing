@@ -1,0 +1,13 @@
+# Repo-root dockerignore for expo-web build (context: .)
+.git
+**/node_modules
+**/.expo
+**/dist
+apps/api
+app
+lib
+public
+infra
+*.md
+.env
+.env.*

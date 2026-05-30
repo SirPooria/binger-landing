@@ -1,0 +1,29 @@
+# Build Expo web bundle and serve on :8081 (used by nginx → localhost:8080).
+# Build context: monorepo root (see infra/docker-compose.yml).
+FROM node:20-bookworm-slim AS build
+
+WORKDIR /workspace
+
+# Monorepo workspace install (mobile depends on @binger/shared).
+COPY package.json package-lock.json ./
+COPY packages/shared packages/shared
+COPY apps/api/package.json apps/api/package.json
+COPY apps/mobile apps/mobile
+
+RUN npm install -w apps/mobile --include-workspace-root=false
+
+WORKDIR /workspace/apps/mobile
+
+ARG EXPO_PUBLIC_API_BASE_URL=http://localhost:8080
+ENV EXPO_PUBLIC_API_BASE_URL=$EXPO_PUBLIC_API_BASE_URL
+ENV CI=1
+ENV EXPO_NO_TELEMETRY=1
+
+RUN npx expo export --platform web
+
+FROM node:20-bookworm-slim AS runtime
+WORKDIR /app
+RUN npm install -g serve@14
+COPY --from=build /workspace/apps/mobile/dist ./dist
+EXPOSE 8081
+CMD ["serve", "dist", "-l", "8081", "-s"]
