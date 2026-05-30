@@ -3,7 +3,8 @@
 **/node_modules
 **/.expo
 **/dist
-apps/api
+apps/api/src
+apps/api/node_modules
 app
 lib
 public

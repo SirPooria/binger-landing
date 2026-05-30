@@ -33,9 +33,12 @@ if [[ -z "$EXPO_DEV_HOST" ]]; then
 fi
 
 export EXPO_PUBLIC_API_BASE_URL="http://${EXPO_DEV_HOST}:8080"
+# Magic-link emails use this host in the verify URL (must be reachable from the phone).
+export PUBLIC_API_URL="http://${EXPO_DEV_HOST}:8080"
 export EXPO_DEBUG_RUN_ID="${EXPO_DEBUG_RUN_ID:-$(date +%s)}"
 
 echo "[expo-device] API base URL: $EXPO_PUBLIC_API_BASE_URL"
+echo "[expo-device] Magic-link host: $PUBLIC_API_URL (set in .env for Docker too)"
 echo "[expo-device] Metro mode:   $MODE (port $METRO_PORT)"
 echo ""
 

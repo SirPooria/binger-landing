@@ -5,7 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { AppText } from '@/components/ui/AppText';
 import { fetchActiveStories } from '@/lib/social';
-import { supabase } from '@/lib/supabase';
+import { apiPost } from '@/lib/api';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { colors } from '@/constants/theme';
 
@@ -32,7 +32,7 @@ export default function StoryViewer() {
       if (finished) next();
     });
     // Record a view.
-    if (me) supabase.from('story_views').upsert({ story_id: current.id, viewer_id: me.id }).then(() => {});
+    if (me) apiPost(`/stories/${current.id}/view`, {}).catch(() => {});
     return () => anim.stop();
   }, [index, current?.id]);
 

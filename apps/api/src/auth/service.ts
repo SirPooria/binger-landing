@@ -136,7 +136,11 @@ export async function createMagicLink(email: string, redirectUri?: string): Prom
   const verifyUrl = `${config.auth.publicApiUrl}/api/v1/auth/magic-link/verify?token=${encodeURIComponent(token)}${
     redirectUri ? `&redirect_uri=${encodeURIComponent(redirectUri)}` : ''
   }`;
-  await sendMagicLinkEmail(email, verifyUrl);
+  // Do not block the HTTP response on SMTP (Gmail from Docker can hang and mobile clients time out).
+  void sendMagicLinkEmail(email, verifyUrl).catch((err) => {
+    console.error('[auth] magic-link email failed', err);
+    console.log('[magic-link] Login link for', email, ':\n', verifyUrl, '\n');
+  });
 }
 
 async function sendMagicLinkEmail(email: string, verifyUrl: string) {

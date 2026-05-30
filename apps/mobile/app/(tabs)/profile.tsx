@@ -1,6 +1,6 @@
 import { ScrollView, View, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { LogOut, Award, Trophy } from 'lucide-react-native';
 import { AppText } from '@/components/ui/AppText';
@@ -15,7 +15,14 @@ import { colors, radii } from '@/constants/theme';
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const qc = useQueryClient();
   const { user, signOut } = useAuthStore();
+
+  const handleSignOut = async () => {
+    await signOut();
+    qc.clear();
+    router.replace('/(auth)/welcome');
+  };
   const { data, isLoading } = useQuery({
     queryKey: ['profile-stats', user?.id],
     queryFn: () => fetchProfileStats(user!.id),
@@ -47,7 +54,7 @@ export default function ProfileScreen() {
             <AppText weight="black" style={styles.name}>{p?.full_name ?? p?.username ?? 'کاربر بینجر'}</AppText>
             <AppText style={styles.username}>@{p?.username ?? '...'}</AppText>
           </View>
-          <Pressable onPress={signOut} hitSlop={10}>
+          <Pressable onPress={handleSignOut} hitSlop={10}>
             <LogOut size={22} color={colors.muted} />
           </Pressable>
         </View>

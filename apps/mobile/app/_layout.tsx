@@ -20,6 +20,7 @@ import {
 import '../global.css';
 import { queryClient } from '@/lib/queryClient';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { AuthDeepLinkHandler } from '@/components/AuthDeepLinkHandler';
 import { colors } from '@/constants/theme';
 
 export default function RootLayout() {
@@ -48,6 +49,7 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <BottomSheetModalProvider>
             <StatusBar style="light" />
+            <AuthDeepLinkHandler />
             <Stack
               screenOptions={{
                 headerShown: false,
@@ -56,6 +58,7 @@ export default function RootLayout() {
               }}
             >
               <Stack.Screen name="(auth)" />
+              <Stack.Screen name="auth/callback" />
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="tv/[id]/index" />
               <Stack.Screen name="tv/[id]/season/[s]/episode/[e]" />

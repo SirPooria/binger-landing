@@ -5,8 +5,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronRight, Send } from 'lucide-react-native';
 import { AppText } from '@/components/ui/AppText';
-import { fetchReplies } from '@/lib/forums';
-import { supabase } from '@/lib/supabase';
+import { fetchForum, fetchReplies, postReply } from '@/lib/forums';
+import { awardXp } from '@/lib/gamification';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { relativeTimeFa } from '@binger/shared';
 import { colors, radii } from '@/constants/theme';
@@ -20,17 +20,14 @@ export default function ThreadDetail() {
 
   const thread = useQuery({
     queryKey: ['forum-thread', id],
-    queryFn: async () => {
-      const { data } = await supabase.from('forums').select('*, profiles(username, avatar_url)').eq('id', id).single();
-      return data;
-    },
+    queryFn: () => fetchForum(id),
   });
   const replies = useQuery({ queryKey: ['forum-replies', id], queryFn: () => fetchReplies(id) });
 
   const submit = async () => {
     if (!user || !reply.trim()) return;
-    await supabase.from('forum_replies').insert({ forum_id: id, user_id: user.id, body: reply.trim() });
-    await supabase.rpc('award_xp', { p_user_id: user.id, p_amount: 20, p_action: 'forum_post', p_reference: id });
+    await postReply(id, reply.trim());
+    await awardXp(user.id, 'forum_post', id);
     setReply('');
     qc.invalidateQueries({ queryKey: ['forum-replies', id] });
   };

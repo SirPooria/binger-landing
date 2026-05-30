@@ -48,6 +48,14 @@ export async function createThread(input: {
   });
 }
 
+export async function fetchForum(forumId: string): Promise<ForumThread | null> {
+  return apiGet<ForumThread | null>(`/forums/${forumId}`);
+}
+
 export async function fetchReplies(forumId: string) {
   return apiGet<any[]>(`/forums/${forumId}/replies`);
+}
+
+export async function postReply(forumId: string, body: string) {
+  return apiPost<{ ok: boolean }>(`/forums/${forumId}/replies`, { body });
 }

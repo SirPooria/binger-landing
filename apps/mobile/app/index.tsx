@@ -4,7 +4,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { colors } from '@/constants/theme';
 
 export default function Index() {
-  const { session, initialized } = useAuthStore();
+  const { user, initialized } = useAuthStore();
 
   if (!initialized) {
     return (
@@ -14,5 +14,5 @@ export default function Index() {
     );
   }
 
-  return <Redirect href={session ? '/(tabs)' : '/(auth)/welcome'} />;
+  return <Redirect href={user ? '/(tabs)' : '/(auth)/welcome'} />;
 }

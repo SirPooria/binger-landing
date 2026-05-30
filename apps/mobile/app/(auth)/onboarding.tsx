@@ -9,7 +9,8 @@ import * as Haptics from 'expo-haptics';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
 import { getPopularShows, getImageUrl } from '@/lib/tmdbClient';
-import { supabase } from '@/lib/supabase';
+import { apiPost } from '@/lib/api';
+import { completeOnboarding } from '@/lib/auth';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { colors, radii } from '@/constants/theme';
 import type { TmdbShow } from '@binger/shared';
@@ -17,6 +18,7 @@ import type { TmdbShow } from '@binger/shared';
 export default function Onboarding() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const setUser = useAuthStore((s) => s.setUser);
   const { width } = useWindowDimensions();
   const numColumns = width > 600 ? 5 : 3;
   const gap = 12;
@@ -52,10 +54,9 @@ export default function Onboarding() {
     if (selected.size === 0 || !user) return;
     setSubmitting(true);
     try {
-      const records = Array.from(selected).map((id) => ({ user_id: user.id, show_id: id }));
-      await supabase.from('watchlist').upsert(records, { onConflict: 'user_id, show_id' });
-      await supabase.auth.updateUser({ data: { onboarding_complete: true } });
-      await supabase.auth.refreshSession();
+      await apiPost('/watchlist/bulk', { show_ids: Array.from(selected) });
+      const updated = await completeOnboarding();
+      setUser(updated);
       router.replace('/(tabs)');
     } catch (e: any) {
       setSubmitting(false);

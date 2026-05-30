@@ -37,6 +37,25 @@ export const config = {
     model: process.env.AI_MODEL ?? 'claude-3-5-sonnet-latest',
   },
 
+  auth: {
+    jwtSecret: required('JWT_SECRET', 'dev-insecure-change-me'),
+    accessTtlSec: Number(process.env.JWT_ACCESS_TTL_SEC ?? 3600),
+    refreshTtlSec: Number(process.env.JWT_REFRESH_TTL_SEC ?? 2592000),
+    magicLinkTtlSec: Number(process.env.MAGIC_LINK_TTL_SEC ?? 900),
+    defaultAppRedirect: process.env.APP_REDIRECT_URL ?? 'binger://auth/callback',
+    publicApiUrl: process.env.PUBLIC_API_URL ?? 'http://localhost:8080',
+    googleClientId: process.env.GOOGLE_CLIENT_ID ?? '',
+    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
+  },
+
+  smtp: {
+    host: process.env.SMTP_HOST ?? '',
+    port: Number(process.env.SMTP_PORT ?? 587),
+    user: process.env.SMTP_USER ?? '',
+    pass: process.env.SMTP_PASS ?? '',
+    from: process.env.SMTP_FROM ?? 'Binger <noreply@binger.app>',
+  },
+
   // TTLs in seconds.
   cacheTtl: {
     showDetails: 6 * 60 * 60, // 6h

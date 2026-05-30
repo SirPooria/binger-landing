@@ -140,7 +140,7 @@ authRouter.post('/refresh', async (req, res) => {
 // POST /api/v1/auth/logout
 authRouter.post('/logout', async (req, res) => {
   const body = z.object({ refresh_token: z.string().optional() }).safeParse(req.body);
-  if (body.success?.refresh_token) await revokeRefresh(body.data.refresh_token);
+  if (body.success && body.data.refresh_token) await revokeRefresh(body.data.refresh_token);
   res.json({ data: { ok: true } });
 });
 

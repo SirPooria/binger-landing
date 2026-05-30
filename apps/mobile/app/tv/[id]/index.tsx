@@ -11,7 +11,7 @@ import { CommentsSection } from '@/components/comments/CommentsSection';
 import { ForumSection } from '@/components/forum/ForumSection';
 import { useShowDetails } from '@/hooks/useShows';
 import { getBackdropUrl, getImageUrl } from '@/lib/tmdbClient';
-import { supabase } from '@/lib/supabase';
+import { apiGet, apiPost, apiPut } from '@/lib/api';
 import { awardXp } from '@/lib/gamification';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useWatchlistStore } from '@/stores/useWatchlistStore';
@@ -38,19 +38,16 @@ export default function ShowDetails() {
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from('show_ratings')
-      .select('rating')
-      .match({ user_id: user.id, show_id: showId })
-      .maybeSingle()
-      .then(({ data }) => data && setMyRating(data.rating));
+    apiGet<{ rating: number } | null>(`/ratings/${showId}`)
+      .then((data) => data && setMyRating(data.rating))
+      .catch(() => {});
   }, [user, showId]);
 
   const rate = async (rating: number) => {
     if (!user) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setMyRating(rating);
-    await supabase.from('show_ratings').upsert({ user_id: user.id, show_id: showId, rating }, { onConflict: 'user_id, show_id' });
+    await apiPut('/ratings', { show_id: showId, rating });
     await awardXp(user.id, 'rate_show', String(showId));
   };
 
@@ -96,7 +93,7 @@ export default function ShowDetails() {
               {inList ? 'در لیست تماشا' : 'افزودن به لیست'}
             </AppText>
           </Pressable>
-          <Pressable onPress={() => user && supabase.from('favorites').upsert({ user_id: user.id, show_id: showId })} style={styles.iconBtn}>
+          <Pressable onPress={() => user && apiPost('/favorites', { show_id: showId })} style={styles.iconBtn}>
             <Heart size={20} color={colors.accent} />
           </Pressable>
         </View>

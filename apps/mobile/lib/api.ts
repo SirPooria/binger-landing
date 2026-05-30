@@ -1,10 +1,19 @@
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
-export const API_BASE_URL =
+const resolvedBase =
   process.env.EXPO_PUBLIC_API_BASE_URL ??
-  (Constants.expoConfig?.extra as any)?.apiBaseUrl ??
+  (Constants.expoConfig?.extra as { apiBaseUrl?: string })?.apiBaseUrl ??
   'http://localhost:8080';
+
+export const API_BASE_URL = resolvedBase;
+
+if (Platform.OS !== 'web' && /localhost|127\.0\.0\.1/.test(resolvedBase)) {
+  console.warn(
+    '[Binger] EXPO_PUBLIC_API_BASE_URL points at localhost — on a phone use your PC Wi‑Fi IP, e.g. EXPO_DEV_HOST=192.168.x.x ./scripts/expo-device.sh lan'
+  );
+}
 
 const ACCESS_KEY = 'binger_access_token';
 const REFRESH_KEY = 'binger_refresh_token';
@@ -85,13 +94,39 @@ export const apiPatch = <T>(path: string, body?: unknown) =>
   request<T>(path, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
 export const apiDelete = <T>(path: string) => request<T>(path, { method: 'DELETE' });
 
+const API_TIMEOUT_MS = 30_000;
+
 /** Unauthenticated POST (login flows). */
 export async function apiPostPublic<T>(path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}/api/v1${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}/api/v1${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+  } catch (e: unknown) {
+    if (e instanceof Error && e.name === 'AbortError') {
+      throw new Error(
+        `درخواست به سرور زمان‌دار شد (${API_TIMEOUT_MS / 1000}ثانیه). آدرس API: ${API_BASE_URL}\n` +
+          'روی آیفون در Safari باز کنید: ' +
+          `${API_BASE_URL}/api/v1/health`
+      );
+    }
+    if (Platform.OS !== 'web' && /localhost|127\.0\.0\.1/i.test(API_BASE_URL)) {
+      throw new Error(
+        `سرور در دسترس نیست (localhost روی گوشی کار نمی‌کند). Metro را با:\nEXPO_DEV_HOST=<آی‌پی وای‌فای> ./scripts/expo-device.sh lan`
+      );
+    }
+    throw new Error(
+      `سرور در دسترس نیست: ${API_BASE_URL}\nروی آیفون Safari: ${API_BASE_URL}/api/v1/health`
+    );
+  } finally {
+    clearTimeout(timer);
+  }
   const json = (await res.json()) as ApiEnvelope<T>;
   if (!res.ok || json.error) throw new Error(json.message ?? json.error ?? `API error ${res.status}`);
   return json.data as T;

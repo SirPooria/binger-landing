@@ -6,34 +6,47 @@ import { useRouter } from 'expo-router';
 import { Mail } from 'lucide-react-native';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
-import { authGoogleUrl } from '@/lib/api';
+import { API_BASE_URL, authGoogleUrl } from '@/lib/api';
 import { sendMagicLink } from '@/lib/auth';
+import { getAuthRedirectUri } from '@/lib/authRedirect';
+import { tokensFromAuthSessionUrl } from '@/lib/completeAuthFromUrl';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { colors, radii } from '@/constants/theme';
 
 WebBrowser.maybeCompleteAuthSession();
 
-function getRedirectUri(): string {
-  if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    return `${window.location.origin}/auth/callback`;
+function formatAuthError(e: unknown): string {
+  const msg = e instanceof Error ? e.message : String(e);
+  if (msg.includes('Network request failed') || msg.includes('Failed to fetch')) {
+    return 'سرور در دسترس نیست. Metro را با EXPO_DEV_HOST=آی‌پی وای‌فای اجرا کنید و Docker روی :8080 را باز نگه دارید.';
   }
-  return 'binger://auth/callback';
+  return msg || 'خطای ناشناخته';
 }
 
 export default function LoginScreen() {
   const router = useRouter();
+  const signInWithTokens = useAuthStore((s) => s.signInWithTokens);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+
+  const finishSignIn = async (access: string, refresh: string) => {
+    const user = await signInWithTokens(access, refresh);
+    router.replace(user.onboarding_complete ? '/(tabs)' : '/(auth)/onboarding');
+  };
 
   const handleMagicLink = async () => {
     if (!email) return;
     setLoading(true);
     setMessage('');
     try {
-      await sendMagicLink(email, getRedirectUri());
-      setMessage('لینک ورود به ایمیل شما ارسال شد! لطفا صندوق ورودی (و پوشه اسپم) خود را چک کنید.');
-    } catch (e: any) {
-      setMessage(`خطا: ${e.message}`);
+      const redirectUri = getAuthRedirectUri();
+      await sendMagicLink(email, redirectUri);
+      setMessage(
+        'لینک ورود ارسال شد. روی گوشی همان ایمیل را باز کنید — لینک باید اپ بینجر (Expo Go) را باز کند، نه localhost.'
+      );
+    } catch (e: unknown) {
+      setMessage(`خطا: ${formatAuthError(e)}`);
     } finally {
       setLoading(false);
     }
@@ -42,16 +55,27 @@ export default function LoginScreen() {
   const handleGoogle = async () => {
     setLoading(true);
     setMessage('در حال انتقال به صفحه ورود گوگل...');
-    const redirectUri = getRedirectUri();
+    const redirectUri = getAuthRedirectUri();
     const url = authGoogleUrl(redirectUri);
     try {
       if (Platform.OS === 'web') {
         window.location.href = url;
         return;
       }
-      await WebBrowser.openAuthSessionAsync(url, redirectUri);
-    } catch (e: any) {
-      setMessage(`خطا: ${e.message}`);
+
+      const result = await WebBrowser.openAuthSessionAsync(url, redirectUri);
+      if (result.type === 'success' && result.url) {
+        const tokens = tokensFromAuthSessionUrl(result.url);
+        if (tokens) {
+          await finishSignIn(tokens.access, tokens.refresh);
+          return;
+        }
+        setMessage('ورود گوگل تکمیل نشد — توکن دریافت نشد.');
+      } else if (result.type === 'cancel' || result.type === 'dismiss') {
+        setMessage('ورود گوگل لغو شد.');
+      }
+    } catch (e: unknown) {
+      setMessage(`خطا: ${formatAuthError(e)}`);
     } finally {
       setLoading(false);
     }
@@ -73,6 +97,11 @@ export default function LoginScreen() {
             ورود یا ثبت‌نام
           </AppText>
           <AppText style={styles.subtitle}>با ایمیل یا حساب گوگل خود وارد شوید.</AppText>
+          {Platform.OS !== 'web' && (
+            <AppText style={styles.apiHint} selectable>
+              {`API: ${API_BASE_URL}`}
+            </AppText>
+          )}
         </View>
 
         <Pressable onPress={handleGoogle} disabled={loading} style={styles.googleBtn}>
@@ -134,6 +163,7 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 28 },
   subtitle: { color: colors.muted, marginTop: 8, fontSize: 13 },
+  apiHint: { color: colors.muted, marginTop: 10, fontSize: 10, textAlign: 'center' },
   googleBtn: {
     backgroundColor: '#fff',
     borderRadius: radii.md,

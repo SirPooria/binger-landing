@@ -8,7 +8,7 @@ import * as Haptics from 'expo-haptics';
 import { AppText } from '@/components/ui/AppText';
 import { CommentsSection } from '@/components/comments/CommentsSection';
 import { getEpisodeDetails, getImageUrl } from '@/lib/tmdbClient';
-import { supabase } from '@/lib/supabase';
+import { apiPost } from '@/lib/api';
 import { awardXp } from '@/lib/gamification';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { toFarsiDigits } from '@binger/shared';
@@ -32,14 +32,14 @@ export default function EpisodeScreen() {
     if (!user || !ep) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setWatched(true);
-    await supabase.from('watched').insert({ user_id: user.id, show_id: Number(id), episode_id: ep.id });
+    await apiPost('/watched', { show_id: Number(id), episode_id: ep.id });
     await awardXp(user.id, 'watch_episode', String(ep.id));
   };
 
   const sendReaction = async (r: string) => {
     if (!user || !ep) return;
     setReaction(r);
-    await supabase.from('episode_reactions').upsert({ user_id: user.id, episode_id: ep.id, reaction: r });
+    await apiPost('/episode-reactions', { episode_id: ep.id, reaction: r });
   };
 
   if (isLoading || !ep) {

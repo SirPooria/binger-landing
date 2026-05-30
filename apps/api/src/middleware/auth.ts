@@ -27,15 +27,15 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   }
 }
 
-export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
+export async function optionalAuth(req: Request, _res: Response, next: NextFunction) {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) return next();
-  verifyAccess(header.slice(7))
-    .then((p) => findUserById(p.sub))
-    .then((u) => (u ? toAuthUser(u) : null))
-    .then((authUser) => {
-      if (authUser) req.user = authUser;
-      next();
-    })
-    .catch(() => next());
+  try {
+    const payload = verifyAccess(header.slice(7));
+    const dbUser = await findUserById(payload.sub);
+    if (dbUser) req.user = await toAuthUser(dbUser);
+  } catch {
+    /* ignore invalid token */
+  }
+  next();
 }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, Pressable, StyleSheet, useWindowDimensions, Text, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -63,6 +64,7 @@ function MarqueeRow({
 export default function WelcomeScreen() {
   const router = useRouter();
   const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [posters, setPosters] = useState<string[]>([]);
 
   useEffect(() => {
@@ -115,30 +117,42 @@ export default function WelcomeScreen() {
         />
       </View>
 
-      {/* Foreground content */}
-      <Animated.View entering={FadeInDown.duration(800)} style={styles.content}>
-        <Animated.View style={[styles.iconTile, iconStyle]}>
-          <Tv size={48} color="#000" strokeWidth={2.5} />
+      {/* Foreground content — CTA outside FadeInDown (iOS could leave children at opacity 0). */}
+      <View style={[styles.content, { paddingBottom: Math.max(insets.bottom, 24) }]}>
+        <Animated.View entering={FadeInDown.duration(800)} style={styles.heroBlock}>
+          <Animated.View style={[styles.iconTile, iconStyle]}>
+            <Tv size={48} color="#000000" strokeWidth={2.5} />
+          </Animated.View>
+
+          <View style={styles.headingBlock}>
+            <AppText weight="black" style={styles.title}>
+              دستیار شخصیِ
+            </AppText>
+            <AppText weight="black" style={[styles.title, { color: colors.accent }]}>
+              خوره‌های سریال
+            </AppText>
+            <AppText style={styles.subtitle}>
+              لیستت رو بساز، اپیزودها رو تیک بزن و بدون ترس از اسپویل نقد بخون.
+            </AppText>
+          </View>
         </Animated.View>
 
-        <View style={styles.headingBlock}>
-          <AppText weight="black" style={styles.title}>
-            دستیار شخصیِ
-          </AppText>
-          <AppText weight="black" style={[styles.title, { color: colors.accent }]}>
-            خوره‌های سریال
-          </AppText>
-          <AppText style={styles.subtitle}>
-            لیستت رو بساز، اپیزودها رو تیک بزن و بدون ترس از اسپویل نقد بخون.
-          </AppText>
-        </View>
-
         <View style={styles.ctaBlock}>
-          <Pressable onPress={() => router.push('/(auth)/login')} style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}>
-            <AppText weight="black" style={styles.ctaText}>
-              شروع کنیم؟
-            </AppText>
-            <ArrowLeft size={24} color="#000" strokeWidth={2.5} />
+          <Pressable
+            onPress={() => router.push('/(auth)/login')}
+            accessibilityRole="button"
+            accessibilityLabel="شروع کنیم"
+            style={({ pressed }) => [styles.ctaPressable, pressed && styles.ctaPressed]}
+          >
+            <LinearGradient
+              colors={['#ccff00', '#b3e600']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.ctaGradient}
+            >
+              <Text style={styles.ctaText}>شروع کنیم؟</Text>
+              <ArrowLeft size={24} color="#000000" strokeWidth={2.5} />
+            </LinearGradient>
           </Pressable>
 
           <View style={styles.tags}>
@@ -147,7 +161,7 @@ export default function WelcomeScreen() {
             <AppText style={styles.tag}>بدون تبلیغات</AppText>
           </View>
         </View>
-      </Animated.View>
+      </View>
     </View>
   );
 }
@@ -178,7 +192,10 @@ const styles = StyleSheet.create({
     maxWidth: 380,
     paddingHorizontal: 32,
     alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
   },
+  heroBlock: { alignItems: 'center', width: '100%' },
   iconTile: {
     width: 96,
     height: 96,
@@ -203,22 +220,26 @@ const styles = StyleSheet.create({
     maxWidth: 280,
   },
   ctaBlock: { width: '100%', marginTop: 40, gap: 16 },
-  cta: {
+  ctaPressable: { width: '100%', borderRadius: radii.xl, overflow: 'hidden' },
+  ctaGradient: {
     width: '100%',
-    backgroundColor: colors.accent,
+    minHeight: 56,
     paddingVertical: 16,
+    paddingHorizontal: 24,
     borderRadius: radii.xl,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: colors.accent,
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 0 },
   },
-  ctaPressed: { transform: [{ scale: 0.96 }], backgroundColor: colors.accentDim },
-  ctaText: { color: '#000', fontSize: 18 },
+  ctaPressed: { opacity: 0.92, transform: [{ scale: 0.98 }] },
+  ctaText: {
+    color: '#000000',
+    fontSize: 18,
+    fontWeight: '900',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Vazirmatn-Bold',
+    writingDirection: 'rtl',
+  },
   tags: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
   tag: { color: colors.muted, fontSize: 10, fontWeight: '700', letterSpacing: 1 },
   tagDot: { width: 4, height: 4, borderRadius: 999, backgroundColor: colors.muted },
