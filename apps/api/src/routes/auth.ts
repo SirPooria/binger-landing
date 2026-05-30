@@ -15,6 +15,32 @@ import {
   setOnboardingComplete,
 } from '../auth/service.js';
 import { requireAuth } from '../middleware/auth.js';
+import { isNativeAppRedirect, nativeAuthRedirectHtml } from '../auth/redirectHtml.js';
+
+// #region agent log
+function authDebugLog(
+  hypothesisId: string,
+  location: string,
+  message: string,
+  data: Record<string, unknown>
+): void {
+  const payload = {
+    sessionId: 'b4de87',
+    hypothesisId,
+    location,
+    message,
+    data,
+    timestamp: Date.now(),
+    runId: process.env.EXPO_DEBUG_RUN_ID ?? 'api-auth',
+  };
+  console.log('[auth-debug]', JSON.stringify(payload));
+  fetch('http://host.docker.internal:7797/ingest/27386ae9-b32d-4a2c-b3e1-f5d4dddaf92f', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'b4de87' },
+    body: JSON.stringify(payload),
+  }).catch(() => {});
+}
+// #endregion
 
 export const authRouter = Router();
 
@@ -45,10 +71,27 @@ authRouter.post('/magic-link', async (req, res) => {
 authRouter.get('/magic-link/verify', async (req, res) => {
   const token = String(req.query.token ?? '');
   const redirectUri = String(req.query.redirect_uri ?? config.auth.defaultAppRedirect);
+  // #region agent log
+  authDebugLog('H1', 'auth.ts:magic-link/verify', 'request', {
+    publicApiUrl: config.auth.publicApiUrl,
+    redirectUriPrefix: redirectUri.slice(0, 40),
+    hasToken: !!token,
+  });
+  // #endregion
   if (!token) return res.status(400).send('توکن نامعتبر');
   const session = await verifyMagicLink(token);
   if (!session) return res.status(400).send('لینک منقضی یا استفاده شده است.');
-  res.redirect(302, redirectWithTokens(redirectUri, session));
+  const target = redirectWithTokens(redirectUri, session);
+  if (isNativeAppRedirect(redirectUri)) {
+    // #region agent log
+    authDebugLog('H3', 'auth.ts:magic-link/verify', 'native_html_bridge', {
+      targetPrefix: target.slice(0, 60),
+    });
+    // #endregion
+    res.type('html').send(nativeAuthRedirectHtml(target));
+    return;
+  }
+  res.redirect(302, target);
 });
 
 // GET /api/v1/auth/google?redirect_uri=binger://auth/callback
@@ -64,6 +107,12 @@ authRouter.get('/google', async (req, res) => {
     [state, redirectUri, expires.toISOString()]
   );
   const callbackUrl = `${config.auth.publicApiUrl}/api/v1/auth/google/callback`;
+  // #region agent log
+  authDebugLog('H2', 'auth.ts:google', 'oauth_start', {
+    callbackUrl,
+    appRedirectPrefix: redirectUri.slice(0, 40),
+  });
+  // #endregion
   const params = new URLSearchParams({
     client_id: config.auth.googleClientId,
     redirect_uri: callbackUrl,
@@ -121,7 +170,17 @@ authRouter.get('/google/callback', async (req, res) => {
       picture: profile.picture,
     });
     const session = await issueTokens(user);
-    res.redirect(302, redirectWithTokens(st.redirect_uri, session));
+    const target = redirectWithTokens(st.redirect_uri, session);
+    if (isNativeAppRedirect(st.redirect_uri)) {
+      // #region agent log
+      authDebugLog('H3', 'auth.ts:google/callback', 'native_html_bridge', {
+        targetPrefix: target.slice(0, 60),
+      });
+      // #endregion
+      res.type('html').send(nativeAuthRedirectHtml(target));
+      return;
+    }
+    res.redirect(302, target);
   } catch (e) {
     console.error('[google] callback', e);
     res.status(500).send('خطای سرور در ورود گوگل.');

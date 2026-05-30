@@ -15,6 +15,39 @@ import { colors, radii } from '@/constants/theme';
 
 WebBrowser.maybeCompleteAuthSession();
 
+// #region agent log
+function authClientLog(
+  hypothesisId: string,
+  location: string,
+  message: string,
+  data: Record<string, unknown>
+): void {
+  fetch('http://127.0.0.1:7797/ingest/27386ae9-b32d-4a2c-b3e1-f5d4dddaf92f', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'b4de87' },
+    body: JSON.stringify({
+      sessionId: 'b4de87',
+      hypothesisId,
+      location,
+      message,
+      data,
+      timestamp: Date.now(),
+      runId: 'mobile-login',
+    }),
+  }).catch(() => {});
+}
+// #endregion
+
+/** Google OAuth web clients do not allow private LAN IPs as redirect_uri (only localhost / https). */
+function isPrivateLanApiHost(): boolean {
+  try {
+    const host = new URL(API_BASE_URL).hostname;
+    return /^(192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.|10\.)/.test(host);
+  } catch {
+    return false;
+  }
+}
+
 function formatAuthError(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e);
   if (msg.includes('Network request failed') || msg.includes('Failed to fetch')) {
@@ -41,6 +74,12 @@ export default function LoginScreen() {
     setMessage('');
     try {
       const redirectUri = getAuthRedirectUri();
+      // #region agent log
+      authClientLog('H1', 'login.tsx:magic-link', 'send', {
+        apiBase: API_BASE_URL,
+        redirectUri: redirectUri.slice(0, 80),
+      });
+      // #endregion
       await sendMagicLink(email, redirectUri);
       setMessage(
         'لینک ورود ارسال شد. روی گوشی همان ایمیل را باز کنید — لینک باید اپ بینجر (Expo Go) را باز کند، نه localhost.'
@@ -57,6 +96,22 @@ export default function LoginScreen() {
     setMessage('در حال انتقال به صفحه ورود گوگل...');
     const redirectUri = getAuthRedirectUri();
     const url = authGoogleUrl(redirectUri);
+    // #region agent log
+    authClientLog('H2', 'login.tsx:google', 'start', {
+      apiBase: API_BASE_URL,
+      redirectUri: redirectUri.slice(0, 80),
+      privateLan: isPrivateLanApiHost(),
+    });
+    // #endregion
+    if (Platform.OS !== 'web' && isPrivateLanApiHost()) {
+      setMessage(
+        'ورود گوگل با آی‌پی Wi‑Fi (مثل 172.20.x) در Google Cloud مجاز نیست.\n' +
+          'از tunnel استفاده کنید: EXPO_DEV_HOST=<ip> ./scripts/expo-device.sh tunnel\n' +
+          'سپس در Google Console آدرس https://….exp.direct/api/v1/auth/google/callback را اضافه کنید.'
+      );
+      setLoading(false);
+      return;
+    }
     try {
       if (Platform.OS === 'web') {
         window.location.href = url;

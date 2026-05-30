@@ -88,7 +88,9 @@ npm run test:e2e     # full stack smoke (Docker)
 | `PUBLIC_API_URL` | Base URL for magic-link verify (default `http://localhost:8080`) |
 | `APP_REDIRECT_URL` | Deep link after login (default `binger://auth/callback`) |
 
-Google Console redirect URI: `{PUBLIC_API_URL}/api/v1/auth/google/callback` (with device dev, `PUBLIC_API_URL` is `http://<lan-ip>:8081` after `set-lan-env.sh --write`)
+**Google login on a physical phone:** Google does not allow private LAN IPs (`172.20.x`, `192.168.x`) as OAuth redirect URIs. Use **tunnel** mode (`./scripts/expo-device.sh tunnel`), set `PUBLIC_API_URL` to the tunnel HTTPS origin, and register `{PUBLIC_API_URL}/api/v1/auth/google/callback` in Google Cloud Console.
+
+**Magic link:** Run `./scripts/set-lan-env.sh --write` so `PUBLIC_API_URL` is `http://<lan-ip>:8081` (same as Metro). Metro must be running when you open the email link. Request a **new** link after changing `.env`.
 
 ---
 
